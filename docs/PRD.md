@@ -344,11 +344,61 @@ The MVP is useful when a user can:
 - Computer-use GUI automation.
 - Full repository knowledge graph.
 
+## Model Providers And Authentication
+
+UAW must support multiple model providers from day one, but should not ship every provider in MVP. The architecture is the adapter pattern; the MVP commits to a concrete provider list.
+
+### Provider Matrix
+
+| Provider | Auth modes | First-tier? |
+|---|---|---|
+| Anthropic | API key, Claude Max OAuth | Yes |
+| OpenAI | API key, ChatGPT Plus OAuth | Yes |
+| Google AI Studio | API key | Later |
+| GitHub Copilot | Copilot OAuth | Later |
+| Local (Ollama, LM Studio) | Local URL | Later |
+
+The OAuth-on-existing-subscriptions pattern is borrowed from Craft Agents. It removes the "pay twice" friction for users who already have Claude Max, ChatGPT Plus, or Copilot.
+
+### Storage Rules
+
+- API keys live in OS keychain, keyed by `provider:account`.
+- OAuth refresh tokens live in OS keychain.
+- The Vue frontend never sees raw keys or tokens.
+- Backend services inject credentials at the call site.
+- Logs and prompts never echo secrets.
+
+### Per-Session Selection
+
+Each session records `adapter_id`, `model_id`, and the `account_id` that resolved the credential. The same workspace can run a Claude Sonnet research session and an OpenAI coding session simultaneously without leaking config across sessions.
+
+## Reference Products And Differentiation
+
+[Craft Agents (OSS)](https://github.com/craft-ai-agents/craft-agents-oss) is the most relevant existing product. UAW should treat it as a reference, not a competitor to clone.
+
+Borrow:
+
+- Multi-provider auth via API key and subscription OAuth.
+- Permission mode triple: `safe`, `ask`, `allow-all`, with a Shift+Tab cycle.
+- "Add X as a source" agent flow that discovers MCP servers and APIs.
+- Multi-file diff viewer modeled after VS Code's review surface.
+- Headless server mode is interesting later, not in MVP.
+
+Diverge:
+
+- Tauri + Rust + SQLite instead of Electron + Bun.
+- Git worktrees and review records are first-class, not document-only workflow.
+- Deterministic git-diff review runs before any LLM review.
+- Workspace-scoped sources, skills, automations, and policies are required from MVP, not optional.
+
 ## Open Product Questions
 
-1. Which first real agent adapter should ship: Codex CLI, Claude Code CLI, Anthropic API, or a manual adapter?
+1. Which first real agent adapter should ship beyond the manual adapter?
+   - Decided direction: Manual adapter first, then Claude Code CLI adapter, then a Claude Agent SDK API adapter, then OpenAI API adapter.
 2. Should the first review agent be deterministic, LLM-based, or both?
+   - Decided direction: deterministic first, LLM later.
 3. Should document artifacts be database-backed markdown first or file-backed markdown first?
 4. How much worktree cleanup should be automated after accept/discard?
 5. Which integration should come first after local repos: GitHub, Linear, Notion, or MCP?
+6. Which API should ship first for OAuth: Claude Max, ChatGPT Plus, or GitHub Copilot?
 

@@ -18,6 +18,18 @@ The architecture should support long-running local processes and persistent work
 - Agent execution: adapter interface.
 - Future integrations: MCP and connector-specific adapters.
 
+### Tauri Vs Electron
+
+Tauri is preferred over Electron for UAW. The frontend is intentionally thin and does not justify a Chromium runtime per app instance. The expensive work is in Rust:
+
+- git CLI orchestration and worktree management.
+- PTY and process supervision for long-running agents.
+- OS keychain access for credentials and OAuth tokens.
+- SQLite migrations and queries.
+- Adapter calls that may hold streaming connections open for minutes.
+
+Reference products such as [Craft Agents](https://github.com/craft-ai-agents/craft-agents-oss) ship on Electron + Bun + TypeScript end-to-end. UAW splits along the OS boundary so the renderer can stay focused on UI state, not process management.
+
 ## Core Layers
 
 ```txt
@@ -276,6 +288,7 @@ Introduce an adapter boundary before hard-coding one engine.
 interface AgentAdapter {
   id: string;
   name: string;
+  capabilities: AgentCapabilities;
   startSession(input: StartSessionInput): Promise<AgentSessionHandle>;
   sendMessage(sessionId: string, message: string): Promise<void>;
   stopSession(sessionId: string): Promise<void>;
@@ -283,19 +296,58 @@ interface AgentAdapter {
 }
 ```
 
+Capabilities describe what the adapter can do so the UI can hide unsupported features:
+
+```ts
+interface AgentCapabilities {
+  streaming: boolean;
+  toolUse: boolean;
+  mcp: boolean;
+  fileEdits: boolean;
+  shellCommands: boolean;
+  multiTurn: boolean;
+}
+```
+
 Candidate adapters:
 
 - Manual adapter: user performs work in the worktree, UAW collects diff/review.
-- Codex CLI adapter.
 - Claude Code CLI adapter.
-- Anthropic API adapter for research/document sessions.
-- OpenAI API adapter for research/document sessions.
+- Codex CLI adapter.
+- Claude Agent SDK adapter (Anthropic API + agent loop + tool use + MCP).
+- OpenAI API adapter (research/document sessions, optionally Responses API with built-in tool use).
+- Google AI Studio adapter for research/document sessions.
 
-Recommended first adapter:
+Recommended build order:
 
 ```txt
-Manual adapter -> one CLI adapter -> API-backed research adapter
+Manual adapter -> Claude Code CLI adapter -> Claude Agent SDK API adapter -> OpenAI API adapter
 ```
+
+The first API adapter targets the Claude Agent SDK because it ships an agent loop, tool use, MCP support, and prompt caching out of the box. Adding more providers after that becomes a question of mapping the same internal events to a new SDK rather than rebuilding a runtime.
+
+### Provider Authentication
+
+Providers are configured per workspace; sessions pick a provider account at start time.
+
+```txt
+Provider               Auth modes
+---------              -----------
+Anthropic              API key, Claude Max OAuth
+OpenAI                 API key, ChatGPT Plus OAuth (Codex)
+Google AI Studio       API key
+GitHub Copilot         Copilot OAuth
+Local (Ollama, etc.)   local URL
+```
+
+Storage rules:
+
+- API keys and OAuth refresh tokens live in OS keychain, keyed by `provider:account_id`.
+- The frontend receives only an opaque `account_id` and a display name.
+- Backend services resolve credentials at the call site and never echo them in logs, events, or prompts.
+- Each session row records `adapter_id`, `model_id`, and `account_id` for resumability and audit.
+
+OAuth is supported because users with paid subscriptions like Claude Max, ChatGPT Plus, or GitHub Copilot should not need a separate API key. This pattern is borrowed from [Craft Agents](https://github.com/craft-ai-agents/craft-agents-oss).
 
 ## Worktree Lifecycle
 
@@ -349,9 +401,11 @@ Add LLM review only after this data pipeline is reliable.
 
 Visible session permission modes:
 
-- Explore: read-only.
-- Ask to Edit: writes and commands require approval.
-- Execute: writes and commands are allowed inside policy.
+- Explore (`safe`): read-only.
+- Ask to Edit (`ask`): writes and commands require approval. Default.
+- Execute (`allow-all`): writes and commands are allowed inside policy.
+
+The user-facing labels are intentionally aligned with [Craft Agents](https://github.com/craft-ai-agents/craft-agents-oss) so users coming from that product carry their mental model over. Use Shift+Tab in the chat surface to cycle modes.
 
 Longer-term hierarchy:
 

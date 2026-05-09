@@ -12,7 +12,7 @@ Create the initial app shell and development foundation.
 
 Tasks:
 
-- Scaffold Tauri + Vue 3 + TypeScript.
+- Scaffold Tauri + Vue 3 + TypeScript. Do not switch to Electron at any point - the Tauri/Rust split is a deliberate choice (see `TECHNICAL_ARCHITECTURE.md` and `START_HERE.md`).
 - Add Rust backend structure.
 - Add SQLite dependency and database initialization.
 - Add migration runner.
@@ -325,28 +325,46 @@ Replace manual worktree changes with a real agent execution path.
 Recommended order:
 
 ```txt
-Manual adapter -> one CLI adapter -> API-backed research adapter
+Manual adapter -> Claude Code CLI adapter -> Claude Agent SDK API adapter -> OpenAI API adapter
 ```
+
+Provider auth in scope:
+
+- Anthropic API key.
+- OpenAI API key.
+
+Provider auth deferred to a follow-up milestone:
+
+- Claude Max OAuth.
+- ChatGPT Plus OAuth (Codex).
+- GitHub Copilot OAuth.
+- Google AI Studio API key.
 
 Backend tasks:
 
-- Add adapter trait/module boundary.
+- Add adapter trait/module boundary with the `AgentAdapter` and `AgentCapabilities` shape from `TECHNICAL_ARCHITECTURE.md`.
+- Add `provider_accounts` table (`id`, `provider`, `auth_mode`, `display_name`, `keychain_ref`).
+- Add OS-keychain wrapper service for storing API keys.
 - Add session event log.
 - Add commands to start, stop, and inspect an agent session.
-- Persist agent output events.
+- Persist agent output events with the schema from the Event Model section.
+- Wire the Claude Agent SDK as the first API adapter through a Node sidecar process if a Rust client is not yet mature; do not let the renderer host it.
 
 Frontend tasks:
 
+- Add provider account screen: connect API key by `provider:account_id`.
+- Add per-session model picker that lists adapters and accounts.
 - Add agent session inspector.
 - Show logs/events.
-- Show permissions.
+- Show permissions and let user cycle modes with Shift+Tab.
 - Show current status.
 
 Done when:
 
-- UAW can start or track an implementation session.
+- UAW can start or track an implementation session against at least one real provider.
 - Session events persist.
 - Completion triggers review automation.
+- The frontend never receives a raw API key.
 
 ## Milestone 11: Dispatch From Artifact To Coding Tasks
 

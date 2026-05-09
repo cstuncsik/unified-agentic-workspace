@@ -72,3 +72,21 @@ Avoid building the connector marketplace, plugin system, complex RAG, cloud sync
 - Secrets: OS keychain
 - Git operations: git CLI
 - Agent execution: adapter interface, starting with manual/Codex/Claude Code adapter
+- Model providers: Anthropic, OpenAI, Google AI Studio, plus subscription-OAuth flows (Claude Max, ChatGPT Plus, GitHub Copilot)
+
+### Why Tauri, not Electron
+
+The frontend is intentionally thin: lists, forms, a markdown editor, a diff viewer, and a status board. That work does not justify shipping a full Chromium runtime per app instance.
+
+Tauri is preferred because:
+
+- Smaller binaries and lower memory than Electron.
+- Rust backend is a better fit for filesystem, git CLI, PTY/process management, and OS keychain access.
+- Process and permission boundaries are cleaner without a Node runtime hosting the app shell.
+- Long-running agents, worktrees, and git operations belong in a backend service, not the renderer.
+
+Reference products like [Craft Agents](https://github.com/craft-ai-agents/craft-agents-oss) ship on Electron + Bun + TypeScript end-to-end. UAW deliberately splits along the OS boundary instead.
+
+## Reference Products
+
+- [Craft Agents (OSS)](https://github.com/craft-ai-agents/craft-agents-oss) — closest existing product to UAW. Multi-provider, MCP sources, skills, automations, permission modes, multi-file diff. Validates the shape of the product. Differentiates from UAW on stack (Electron) and emphasis (document-centric vs worktree/review-centric).
