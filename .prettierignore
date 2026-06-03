@@ -1,0 +1,9 @@
+dist
+node_modules
+pnpm-lock.yaml
+src-tauri/target
+src-tauri/gen
+
+# Seeded project docs — keep authored formatting.
+docs
+README.md

@@ -72,3 +72,30 @@ Avoid building the connector marketplace, plugin system, complex RAG, cloud sync
 - Secrets: OS keychain
 - Git operations: git CLI
 - Agent execution: adapter interface, starting with manual/Codex/Claude Code adapter
+
+## Development
+
+Prerequisites: Node.js, [pnpm](https://pnpm.io/), and the Rust toolchain (`rustc` / `cargo`). See the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for platform-specific system dependencies.
+
+```bash
+pnpm install                                      # install frontend dependencies
+pnpm tauri dev                                     # run the desktop app with hot reload
+pnpm build                                         # typecheck (vue-tsc) + build the frontend
+pnpm typecheck                                     # type-check only
+pnpm format                                        # format with Prettier
+cargo check --manifest-path src-tauri/Cargo.toml   # check the Rust backend
+cargo fmt --manifest-path src-tauri/Cargo.toml     # format the Rust backend
+```
+
+### Project layout
+
+```txt
+src/            Vue 3 + TypeScript frontend (Pinia stores, Tauri API wrappers, components)
+src-tauri/      Rust backend: Tauri commands, SQLite access, migration runner
+  src/db/       database init + ordered schema migrations (migrations/NNNN_*.sql)
+  src/models/   domain models and their DB functions
+  src/commands/ thin Tauri commands (validate -> db -> DTO)
+docs/           PRD, architecture, and implementation roadmap
+```
+
+The SQLite database is created on first launch in the OS app-data directory (on macOS: `~/Library/Application Support/io.n8n.uaw/uaw.sqlite`). Schema changes are applied by the migration runner in `src-tauri/src/db`, tracked in the `schema_migrations` table.

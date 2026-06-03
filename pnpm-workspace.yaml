@@ -1,0 +1,7 @@
+# pnpm settings (pnpm >= 10 reads project settings from here, not package.json).
+# Allow these dependencies to run their install/build scripts:
+#   - esbuild: fetches its native binary, required by Vite
+#   - vue-demi: switches its Vue 2/3 entry point, required by Pinia
+allowBuilds:
+  esbuild: true
+  vue-demi: true
