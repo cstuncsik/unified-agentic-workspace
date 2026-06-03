@@ -1,0 +1,27 @@
+docs/START_HERE.md
+  s_5b99fa80506ad8::t_446f59e7ab4d14 74-95
+docs/TECHNICAL_ARCHITECTURE.md
+  s_5b99fa80506ad8::t_446f59e7ab4d14 21-32,291,299-311,316-319,321,324,327-351,404-408
+docs/PRD.md
+  s_5b99fa80506ad8::t_446f59e7ab4d14 347-393,396-397,399,403
+README.md
+  ai_agent 75-92
+docs/IMPLEMENTATION_ROADMAP.md
+  s_5b99fa80506ad8::t_446f59e7ab4d14 15,328,331-342,345-347,350-351,355-356,359,364,367
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7cf0ba9f26346b698bb543ef02c7d774fab5e88a",
+  "prompts": {},
+  "sessions": {
+    "s_5b99fa80506ad8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8311dcda-8550-48ff-8447-9a0838e05e0b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
