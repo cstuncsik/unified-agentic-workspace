@@ -71,6 +71,28 @@ Recommended stack:
 
 This stack gives UAW a strong local-first foundation while keeping process, file, git, and permission boundaries close to the operating system.
 
+### Tauri Over Electron
+
+Tauri is a deliberate choice over Electron. The UAW frontend is thin: lists, forms, a markdown editor, a diff viewer, a status board. That UI does not justify a full Chromium runtime per app instance. Long-running concerns - git CLI, worktrees, PTY/process management, OS keychain, agent processes - belong in a Rust backend, not in a Node runtime hosting the app shell.
+
+Reference products such as [Craft Agents](https://github.com/craft-ai-agents/craft-agents-oss) ship on Electron + Bun + TypeScript end-to-end. UAW splits along the OS boundary instead, keeping the renderer thin and the backend in charge of all expensive or sensitive work.
+
+## Reference Products
+
+[Craft Agents (OSS)](https://github.com/craft-ai-agents/craft-agents-oss) is the closest existing product to UAW. Read its README and watch its demo video before designing the adapter and source layers. It validates many product choices already in this PRD: workspace + sessions + sources + skills + automations + permission modes + multi-file diff.
+
+Borrow:
+
+- Multi-provider support via API keys and subscription-OAuth flows (Claude Max, ChatGPT Plus, GitHub Copilot).
+- Permission mode names and Shift+Tab cycling.
+- "Add X as a source" pattern, where the agent discovers MCP servers and APIs and configures them.
+
+Diverge:
+
+- Use Tauri + Rust + SQLite, not Electron + Bun.
+- Make git worktrees and review records first-class instead of document-centric workflow only.
+- Run deterministic git-diff review before LLM review.
+
 ## Domain Model To Start With
 
 Build the app around these entities:
