@@ -1,0 +1,83 @@
+src/components/SessionsView.vue
+  s_b49f7388e23022::t_c2ac63cc9d27fc 2-3,24-31
+  s_b49f7388e23022::t_e241d4df919343 1,4-23,32-59,70-72,80,83-139,141-310
+  s_b49f7388e23022::t_964a04ff6e5b13 60-69,73-79,81-82
+  s_b49f7388e23022::t_6fd003b79a5bc9 140
+src/components/WorkspaceSwitcher.vue
+  s_b49f7388e23022::t_1e68dceffb1008 2,12-33,40,56,61-75,98-99,120-125
+src/api/sessions.ts
+  s_b49f7388e23022::t_0deeed22fc14cd 1-31,33-38
+  s_b49f7388e23022::t_c17c88afffff1e 32
+src-tauri/src/commands/sessions.rs
+  s_b49f7388e23022::t_eec7a27103cb28 40-42
+  s_b49f7388e23022::t_693b43cfea9eff 1-39,43-110,116-134
+  s_b49f7388e23022::t_d9de79f00b2bc1 111-115
+src/types/session.ts
+  s_b49f7388e23022::t_5280d553e3c878 1-2,4-78
+  s_b49f7388e23022::t_c17c88afffff1e 3
+src/stores/sessions.ts
+  s_b49f7388e23022::t_1d7f3bd7edacf2 28-31,34,39-41,43,46
+  s_b49f7388e23022::t_7cbb451023a280 69-75
+  s_b49f7388e23022::t_67227344a3c9fe 91
+  s_b49f7388e23022::t_53644913fa6b75 1-27,32-33,35-38,42,44-45,47-68,76-90,92-94
+src-tauri/src/models/mod.rs
+  s_b49f7388e23022::t_b22c1c9746c5ab 1-2
+src-tauri/capabilities/default.json
+  s_b49f7388e23022::t_e4e57734061eac 6
+src/types/project.ts
+  s_b49f7388e23022::t_356d71a0a20565 1-13
+src-tauri/src/db/migrations/0002_projects_sessions.sql
+  s_b49f7388e23022::t_34d9f80ce7cfd7 1-32
+src-tauri/src/commands/projects.rs
+  s_b49f7388e23022::t_d137b903f3b6dd 1-85
+package.json
+  s_b49f7388e23022::t_f3fc7e34153337 17-20,23,28
+src-tauri/src/models/session.rs
+  s_b49f7388e23022::t_c61db6bac0f004 160-161
+  s_b49f7388e23022::t_66688fa6077b83 1-61,64-68,78,80-159,162-197,207-210,216-253,255-270
+  s_b49f7388e23022::t_d1cccbe321e196 62-63,198-206,254
+  s_b49f7388e23022::t_3331f527735578 69-77,79
+  s_b49f7388e23022::t_2d379e7f4aa627 211-212
+  s_b49f7388e23022::t_eec7a27103cb28 213-215
+src/api/projects.ts
+  s_b49f7388e23022::t_afbb39efc32b3e 1-30
+src-tauri/Cargo.toml
+  s_b49f7388e23022::t_e4e57734061eac 23
+src-tauri/src/commands/mod.rs
+  s_b49f7388e23022::t_b22c1c9746c5ab 1-2
+src/App.vue
+  s_b49f7388e23022::t_cbdcf0421dc928 2,4-6,8-9,11-13,15-24,27,29-39,48-81,83,96-98,100-101,103-104,158,181-184,188-208,224
+src-tauri/src/models/project.rs
+  s_b49f7388e23022::t_14595f89a95a09 100-101
+  s_b49f7388e23022::t_2f3bf8d311969e 1-99,102-173
+src/stores/projects.ts
+  s_b49f7388e23022::t_68d3e7c009a2a1 11-14,17,22-24,26,29
+  s_b49f7388e23022::t_148dd6229135dc 1-10,15-16,18-21,25,27-28,30-53
+src-tauri/src/db/mod.rs
+  s_b49f7388e23022::t_1e088d9edd0a75 9-20
+src-tauri/src/models/workspace.rs
+  s_b49f7388e23022::t_bc1e9c168d92c2 144
+src-tauri/src/lib.rs
+  s_b49f7388e23022::t_0d22bfb9a767ac 32-42
+  s_b49f7388e23022::t_8b16c68fb07b60 14
+src/components/ProjectsView.vue
+  s_b49f7388e23022::t_eec7a27103cb28 60-63
+  s_b49f7388e23022::t_cb171a34e6e0f4 1-2,4-5,7-10,12-17,21-33,44-45,52,56-59,67,72-103,145-167,170-213,216-217,221-238,244-245,247-250,252-272
+  s_b49f7388e23022::t_666deedabd3b13 3,6,11,18-20,34-43,46-51,53-55,64-66,68-71,104-144,168-169,214-215,218-220,239-243,246,251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "f967edb49ea5e7a9ab4b29f8dd35d3db039bdb0f",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
