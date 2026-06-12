@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { useWorkspacesStore } from "../stores/workspaces";
 
 const store = useWorkspacesStore();
@@ -9,18 +9,35 @@ const selectedId = computed({
   set: (id: string) => store.select(id),
 });
 
-async function newWorkspace() {
-  const name = window.prompt("New workspace name")?.trim();
-  if (name) {
-    await store.create(name);
-  }
+// window.prompt is a no-op in Tauri's webview on macOS, so creation uses an inline input.
+const creating = ref(false);
+const newName = ref("");
+const nameInput = ref<HTMLInputElement | null>(null);
+
+async function startCreate() {
+  creating.value = true;
+  newName.value = "";
+  await nextTick();
+  nameInput.value?.focus();
+}
+
+function cancelCreate() {
+  creating.value = false;
+  newName.value = "";
+}
+
+async function submitCreate() {
+  const name = newName.value.trim();
+  if (!name) return;
+  await store.create(name);
+  cancelCreate();
 }
 </script>
 
 <template>
   <div class="switcher">
     <span class="switcher__label">Workspace</span>
-    <div class="switcher__row">
+    <div v-if="!creating" class="switcher__row">
       <select
         v-model="selectedId"
         class="switcher__select"
@@ -36,11 +53,26 @@ async function newWorkspace() {
         type="button"
         title="New workspace"
         aria-label="New workspace"
-        @click="newWorkspace"
+        @click="startCreate"
       >
         +
       </button>
     </div>
+    <form v-else class="switcher__row" @submit.prevent="submitCreate">
+      <input
+        ref="nameInput"
+        v-model="newName"
+        class="switcher__input"
+        type="text"
+        placeholder="Workspace name"
+        aria-label="New workspace name"
+        @keyup.esc="cancelCreate"
+      />
+      <button class="switcher__new" type="submit" :disabled="!newName.trim()" title="Create">
+        ✓
+      </button>
+      <button class="switcher__new" type="button" title="Cancel" @click="cancelCreate">×</button>
+    </form>
   </div>
 </template>
 
@@ -63,7 +95,8 @@ async function newWorkspace() {
   gap: 0.4rem;
 }
 
-.switcher__select {
+.switcher__select,
+.switcher__input {
   flex: 1;
   min-width: 0;
   padding: 0.4rem 0.5rem;
@@ -84,7 +117,12 @@ async function newWorkspace() {
   cursor: pointer;
 }
 
-.switcher__new:hover {
+.switcher__new:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switcher__new:not(:disabled):hover {
   background: var(--uaw-surface-hover);
 }
 </style>
