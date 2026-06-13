@@ -2,6 +2,10 @@
 # Allow these dependencies to run their install/build scripts:
 #   - esbuild: fetches its native binary, required by Vite
 #   - vue-demi: switches its Vue 2/3 entry point, required by Pinia
+# edgedriver/geckodriver come in transitively via @wdio/cli but are unused
+# (the app is driven through tauri-driver), so their downloads stay off.
 allowBuilds:
+  edgedriver: false
   esbuild: true
+  geckodriver: false
   vue-demi: true

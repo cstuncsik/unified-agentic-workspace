@@ -1,25 +1,42 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useWorkspacesStore } from "./stores/workspaces";
+import { useProjectsStore } from "./stores/projects";
+import { useSessionsStore } from "./stores/sessions";
+import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
+import SessionsView from "./components/SessionsView.vue";
+import ProjectsView from "./components/ProjectsView.vue";
 
-const store = useWorkspacesStore();
+const workspaces = useWorkspacesStore();
+const projects = useProjectsStore();
+const sessions = useSessionsStore();
 
-// Product-shaped navigation placeholders. Wired up in later milestones.
-const navSections = [
-  "New Session",
-  "Inbox",
-  "Projects",
-  "Sources",
-  "Skills",
-  "Automations",
-  "Reviews",
-  "Settings",
-];
+type ActiveView = "inbox" | "projects";
+const activeView = ref<ActiveView>("inbox");
+
+// Placeholders for later milestones; kept visible so navigation stays product-shaped.
+const plannedSections = ["Sources", "Skills", "Automations", "Reviews", "Settings"];
+
+function openInbox(filterKey: string | null) {
+  activeView.value = "inbox";
+  sessions.setFilter(filterKey);
+}
 
 onMounted(() => {
-  store.load();
+  workspaces.load();
 });
+
+watch(
+  () => workspaces.currentId,
+  (workspaceId) => {
+    if (workspaceId) {
+      projects.load(workspaceId);
+      sessions.load(workspaceId);
+      sessions.setFilter(null);
+    }
+  },
+);
 </script>
 
 <template>
@@ -28,8 +45,42 @@ onMounted(() => {
       <div class="brand">UAW</div>
       <WorkspaceSwitcher />
       <nav class="nav">
+        <button class="nav__item nav__item--primary" type="button" @click="openInbox(null)">
+          New Session
+        </button>
+
         <button
-          v-for="section in navSections"
+          class="nav__item"
+          :class="{ 'nav__item--active': activeView === 'inbox' && !sessions.filterGroup }"
+          type="button"
+          @click="openInbox(null)"
+        >
+          Inbox
+        </button>
+        <button
+          v-for="group in STATUS_GROUPS"
+          :key="group.key"
+          class="nav__item nav__item--sub"
+          :class="{
+            'nav__item--active': activeView === 'inbox' && sessions.filterGroup === group.key,
+          }"
+          type="button"
+          @click="openInbox(group.key)"
+        >
+          {{ group.label }}
+        </button>
+
+        <button
+          class="nav__item"
+          :class="{ 'nav__item--active': activeView === 'projects' }"
+          type="button"
+          @click="activeView = 'projects'"
+        >
+          Projects
+        </button>
+
+        <button
+          v-for="section in plannedSections"
           :key="section"
           class="nav__item"
           type="button"
@@ -42,19 +93,15 @@ onMounted(() => {
     </aside>
 
     <main class="main">
-      <p v-if="store.loading" class="muted">Loading workspace…</p>
-      <p v-else-if="store.error" class="error">{{ store.error }}</p>
-      <template v-else-if="store.current">
+      <p v-if="workspaces.loading" class="muted">Loading workspace…</p>
+      <p v-else-if="workspaces.error" class="error">{{ workspaces.error }}</p>
+      <template v-else-if="workspaces.current">
         <header class="main__header">
-          <h1>{{ store.current.name }}</h1>
-          <span class="badge">{{ store.current.kind }}</span>
+          <h1>{{ workspaces.current.name }}</h1>
+          <span class="badge">{{ workspaces.current.kind }}</span>
         </header>
-        <div class="empty">
-          <p>This workspace is empty.</p>
-          <p class="muted">
-            Projects, sessions, sources, skills, automations, and reviews will appear here.
-          </p>
-        </div>
+        <SessionsView v-if="activeView === 'inbox'" />
+        <ProjectsView v-else-if="activeView === 'projects'" />
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>
@@ -108,6 +155,7 @@ body {
   padding: 1rem;
   border-right: 1px solid var(--uaw-border);
   background: var(--uaw-surface);
+  overflow-y: auto;
 }
 
 .brand {
@@ -130,7 +178,32 @@ body {
   background: transparent;
   color: var(--uaw-muted);
   font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.nav__item:disabled {
   cursor: not-allowed;
+}
+
+.nav__item:not(:disabled):hover {
+  background: var(--uaw-surface-hover);
+  color: var(--uaw-text);
+}
+
+.nav__item--active {
+  background: var(--uaw-surface-hover);
+  color: var(--uaw-text);
+}
+
+.nav__item--primary {
+  color: var(--uaw-text);
+  border: 1px solid var(--uaw-border);
+  margin-bottom: 0.5rem;
+}
+
+.nav__item--sub {
+  padding-left: 1.4rem;
+  font-size: 0.82rem;
 }
 
 .sidebar__footer {
@@ -148,6 +221,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .main__header h1 {
@@ -163,10 +237,6 @@ body {
   border: 1px solid var(--uaw-border);
   border-radius: 999px;
   color: var(--uaw-muted);
-}
-
-.empty {
-  margin-top: 2rem;
 }
 
 .muted {

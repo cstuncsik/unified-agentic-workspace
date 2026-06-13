@@ -6,11 +6,18 @@ use crate::util::now_rfc3339;
 
 /// Ordered list of schema migrations: `(version, name, SQL body)`.
 /// Migrations are applied in order; each must have a strictly increasing version.
-const MIGRATIONS: &[(i64, &str, &str)] = &[(
-    1,
-    "init_workspaces",
-    include_str!("migrations/0001_init.sql"),
-)];
+const MIGRATIONS: &[(i64, &str, &str)] = &[
+    (
+        1,
+        "init_workspaces",
+        include_str!("migrations/0001_init.sql"),
+    ),
+    (
+        2,
+        "projects_sessions",
+        include_str!("migrations/0002_projects_sessions.sql"),
+    ),
+];
 
 /// Open (creating if needed) the SQLite database at `db_path`, enable foreign keys,
 /// and apply any pending migrations.
