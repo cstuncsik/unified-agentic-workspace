@@ -110,13 +110,12 @@ watch(
 
 <style>
 :root {
-  --uaw-bg: #0f1115;
-  --uaw-surface: #171a21;
-  --uaw-surface-hover: #1f232c;
-  --uaw-border: #2a2f3a;
-  --uaw-text: #e6e8ec;
-  --uaw-muted: #8a92a3;
-  color-scheme: dark;
+  --uaw-bg: var(--re-color-bg);
+  --uaw-surface: var(--re-color-surface);
+  --uaw-surface-hover: var(--re-color-bg-muted);
+  --uaw-border: var(--re-color-border);
+  --uaw-text: var(--re-color-text);
+  --uaw-muted: var(--re-color-text-muted);
 }
 
 * {
@@ -136,8 +135,6 @@ body {
     -apple-system,
     "Segoe UI",
     sans-serif;
-  background: var(--uaw-bg);
-  color: var(--uaw-text);
 }
 </style>
 
