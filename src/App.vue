@@ -65,7 +65,9 @@ watch(
           :key="group.key"
           class="re-button nav__sub"
           data-variant="ghost"
-          :aria-current="activeView === 'inbox' && sessions.filterGroup === group.key ? 'page' : undefined"
+          :aria-current="
+            activeView === 'inbox' && sessions.filterGroup === group.key ? 'page' : undefined
+          "
           type="button"
           @click="openInbox(group.key)"
         >
@@ -117,15 +119,6 @@ watch(
 </template>
 
 <style>
-:root {
-  --uaw-bg: var(--re-color-bg);
-  --uaw-surface: var(--re-color-surface);
-  --uaw-surface-hover: var(--re-color-bg-muted);
-  --uaw-border: var(--re-color-border);
-  --uaw-text: var(--re-color-text);
-  --uaw-muted: var(--re-color-text-muted);
-}
-
 * {
   box-sizing: border-box;
 }

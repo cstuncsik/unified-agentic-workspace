@@ -78,10 +78,24 @@ async function submitCreate() {
         aria-label="New workspace name"
         @keyup.esc="cancelCreate"
       />
-      <button class="re-button" data-variant="ghost" type="submit" :disabled="!newName.trim()" title="Create">
+      <button
+        class="re-button"
+        data-variant="ghost"
+        type="submit"
+        :disabled="!newName.trim()"
+        title="Create"
+      >
         ✓
       </button>
-      <button class="re-button" data-variant="ghost" type="button" title="Cancel" @click="cancelCreate">×</button>
+      <button
+        class="re-button"
+        data-variant="ghost"
+        type="button"
+        title="Cancel"
+        @click="cancelCreate"
+      >
+        ×
+      </button>
     </form>
   </div>
 </template>

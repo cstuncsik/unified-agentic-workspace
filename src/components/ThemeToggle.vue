@@ -17,7 +17,13 @@ function onChange(event: Event) {
 <template>
   <label class="re-field theme-toggle">
     <span class="re-field__label">Theme</span>
-    <select class="re-select" data-size="sm" aria-label="Theme" :value="ui.theme" @change="onChange">
+    <select
+      class="re-select"
+      data-size="sm"
+      aria-label="Theme"
+      :value="ui.theme"
+      @change="onChange"
+    >
       <option v-for="m in modes" :key="m.value" :value="m.value">{{ m.label }}</option>
     </select>
   </label>

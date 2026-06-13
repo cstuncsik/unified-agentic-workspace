@@ -103,7 +103,12 @@ async function removeSession(id: string, title: string) {
           {{ project.name }}
         </option>
       </select>
-      <button class="re-button" data-variant="primary" type="submit" :disabled="submitting || !newTitle.trim()">
+      <button
+        class="re-button"
+        data-variant="primary"
+        type="submit"
+        :disabled="submitting || !newTitle.trim()"
+      >
         Create
       </button>
     </form>

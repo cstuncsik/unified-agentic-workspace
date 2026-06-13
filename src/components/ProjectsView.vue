@@ -59,7 +59,10 @@ async function saveRename() {
 }
 
 async function removeProject(id: string, name: string) {
-  const confirmed = await confirm(`Delete project "${name}"? Its sessions are kept and detached.`, "Delete project");
+  const confirmed = await confirm(
+    `Delete project "${name}"? Its sessions are kept and detached.`,
+    "Delete project",
+  );
   if (!confirmed) return;
   try {
     await projects.remove(id);
@@ -87,7 +90,12 @@ async function removeProject(id: string, name: string) {
       <select v-model="newMode" class="re-select" aria-label="Project mode">
         <option v-for="mode in PROJECT_MODES" :key="mode" :value="mode">{{ mode }}</option>
       </select>
-      <button class="re-button" data-variant="primary" type="submit" :disabled="submitting || !newName.trim()">
+      <button
+        class="re-button"
+        data-variant="primary"
+        type="submit"
+        :disabled="submitting || !newName.trim()"
+      >
         Create
       </button>
     </form>
@@ -98,7 +106,12 @@ async function removeProject(id: string, name: string) {
       No projects yet. Create a research, code, or mixed project to get started.
     </p>
     <ul v-else class="rows">
-      <li v-for="project in projects.list" :key="project.id" class="re-card" data-testid="project-row">
+      <li
+        v-for="project in projects.list"
+        :key="project.id"
+        class="re-card"
+        data-testid="project-row"
+      >
         <template v-if="editingId === project.id">
           <input
             v-model="editName"
@@ -120,7 +133,15 @@ async function removeProject(id: string, name: string) {
             >
               Save
             </button>
-            <button type="button" class="re-button" data-variant="ghost" data-size="sm" @click="cancelRename">Cancel</button>
+            <button
+              type="button"
+              class="re-button"
+              data-variant="ghost"
+              data-size="sm"
+              @click="cancelRename"
+            >
+              Cancel
+            </button>
           </span>
         </template>
         <template v-else>
