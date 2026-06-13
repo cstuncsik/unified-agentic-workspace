@@ -1,0 +1,20 @@
+src/App.vue
+  s_b49f7388e23022::t_fca4a166f0ca87 159-160,176-178,181-182,185,198,223,225,229,233
+  s_b49f7388e23022::t_c4075e18a2924a 49,54-56,65-67,75-77,87-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "30f4f2a85c29073cb90f9ef0bdb72a95d35d47df",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
