@@ -7,6 +7,7 @@ import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
 import ProjectsView from "./components/ProjectsView.vue";
+import ThemeToggle from "./components/ThemeToggle.vue";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
@@ -89,7 +90,10 @@ watch(
           {{ section }}
         </button>
       </nav>
-      <div class="sidebar__footer">Unified Agentic Workspace</div>
+      <div class="sidebar__footer">
+        <ThemeToggle />
+        <span class="sidebar__footer-label">Unified Agentic Workspace</span>
+      </div>
     </aside>
 
     <main class="main">
@@ -205,6 +209,12 @@ body {
 
 .sidebar__footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sidebar__footer-label {
   font-size: 0.7rem;
   color: var(--uaw-muted);
 }
