@@ -1,0 +1,29 @@
+src/App.vue
+  s_b49f7388e23022::t_e98c192023baa0 50
+src/components/ProjectsView.vue
+  s_b49f7388e23022::t_e0ddc837cf1966 149
+  s_b49f7388e23022::t_e63fb0fef4d5c1 95
+src/theme.ts
+  s_b49f7388e23022::t_597bf6fdf2b9bf 14-15
+src/components/SessionsView.vue
+  s_b49f7388e23022::t_36427e4400b733 108
+  s_b49f7388e23022::t_7a1b060b1387be 137
+e2e/specs/theme.e2e.ts
+  s_b49f7388e23022::t_dcb4e1757fa4be 11-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "869da3bb24d825aba5eee41486bba055adeedbf4",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
