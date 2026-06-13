@@ -132,9 +132,8 @@ keeps a similar dark look while gaining the design system's consistency.
    for **delete project** and **delete session** with a `.re-dialog` modal wired
    by `enhanceDialog`, for a consistent in-app look. (`@tauri-apps/plugin-dialog`
    is removed if no longer used.)
-3. **`re-menu`** — convert the workspace switcher's selector to a `.re-menu` +
-   `enhanceMenuButton` if it improves the switch UX; otherwise keep `.re-select`.
-   This is the one "nice to have" — drop it if it adds churn without payoff.
+
+The workspace switcher keeps `.re-select` (no `re-menu` this pass).
 
 Behaviors are initialized in `App.vue`'s `onMounted` against `document`, and
 torn down on unmount (each returns `{ destroy() }`).
