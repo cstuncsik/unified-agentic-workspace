@@ -5,15 +5,16 @@ import { useWorkspacesStore } from "../stores/workspaces";
 import { useProjectsStore } from "../stores/projects";
 import { useSessionsStore } from "../stores/sessions";
 import { PROJECT_MODES, type ProjectMode } from "../types/project";
+import { useToast } from "../composables/useToast";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const sessions = useSessionsStore();
+const toast = useToast();
 
 const newName = ref("");
 const newMode = ref<ProjectMode>("research");
 const submitting = ref(false);
-const formError = ref<string | null>(null);
 
 const editingId = ref<string | null>(null);
 const editName = ref("");
@@ -22,12 +23,12 @@ async function createProject() {
   const name = newName.value.trim();
   if (!name || !workspaces.currentId) return;
   submitting.value = true;
-  formError.value = null;
   try {
     await projects.create(workspaces.currentId, name, newMode.value);
     newName.value = "";
+    toast.success("Project created");
   } catch (e) {
-    formError.value = String(e);
+    toast.error(String(e));
   } finally {
     submitting.value = false;
   }
@@ -47,12 +48,12 @@ async function saveRename() {
   const id = editingId.value;
   const name = editName.value.trim();
   if (!id || !name) return;
-  formError.value = null;
   try {
     await projects.rename(id, name);
     cancelRename();
+    toast.success("Project renamed");
   } catch (e) {
-    formError.value = String(e);
+    toast.error(String(e));
   }
 }
 
@@ -62,13 +63,13 @@ async function removeProject(id: string, name: string) {
     kind: "warning",
   });
   if (!confirmed) return;
-  formError.value = null;
   try {
     await projects.remove(id);
     sessions.detachProject(id);
     if (editingId.value === id) cancelRename();
+    toast.success("Project deleted");
   } catch (e) {
-    formError.value = String(e);
+    toast.error(String(e));
   }
 }
 </script>
@@ -92,7 +93,6 @@ async function removeProject(id: string, name: string) {
         Create
       </button>
     </form>
-    <p v-if="formError" class="error">{{ formError }}</p>
 
     <p v-if="projects.loading" class="muted">Loading projects…</p>
     <p v-else-if="projects.error" class="error">{{ projects.error }}</p>

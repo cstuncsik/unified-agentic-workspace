@@ -11,16 +11,17 @@ import {
   type SessionMode,
   type SessionStatus,
 } from "../types/session";
+import { useToast } from "../composables/useToast";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const sessions = useSessionsStore();
+const toast = useToast();
 
 const newTitle = ref("");
 const newMode = ref<SessionMode>("research");
 const newProjectId = ref<string>("");
 const submitting = ref(false);
-const formError = ref<string | null>(null);
 
 // A project picked in one workspace must never carry over to another.
 watch(
@@ -41,7 +42,6 @@ async function createSession() {
   const title = newTitle.value.trim();
   if (!title || !workspaces.currentId) return;
   submitting.value = true;
-  formError.value = null;
   try {
     await sessions.create({
       workspaceId: workspaces.currentId,
@@ -50,8 +50,9 @@ async function createSession() {
       projectId: newProjectId.value || undefined,
     });
     newTitle.value = "";
+    toast.success("Session created");
   } catch (e) {
-    formError.value = String(e);
+    toast.error(String(e));
   } finally {
     submitting.value = false;
   }
@@ -60,11 +61,10 @@ async function createSession() {
 async function moveSession(id: string, previous: SessionStatus, event: Event) {
   const select = event.target as HTMLSelectElement;
   const status = select.value as SessionStatus;
-  formError.value = null;
   try {
     await sessions.setStatus(id, status);
   } catch (e) {
-    formError.value = String(e);
+    toast.error(String(e));
     select.value = previous;
   }
 }
@@ -75,11 +75,11 @@ async function removeSession(id: string, title: string) {
     kind: "warning",
   });
   if (!confirmed) return;
-  formError.value = null;
   try {
     await sessions.remove(id);
+    toast.success("Session deleted");
   } catch (e) {
-    formError.value = String(e);
+    toast.error(String(e));
   }
 }
 </script>
@@ -109,7 +109,6 @@ async function removeSession(id: string, title: string) {
         Create
       </button>
     </form>
-    <p v-if="formError" class="error">{{ formError }}</p>
 
     <p v-if="sessions.loading" class="muted">Loading sessions…</p>
     <p v-else-if="sessions.error" class="error">{{ sessions.error }}</p>

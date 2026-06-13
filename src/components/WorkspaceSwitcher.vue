@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 import { useWorkspacesStore } from "../stores/workspaces";
+import { useToast } from "../composables/useToast";
 
 const store = useWorkspacesStore();
+const toast = useToast();
 
 const selectedId = computed({
   get: () => store.currentId ?? "",
@@ -29,8 +31,13 @@ function cancelCreate() {
 async function submitCreate() {
   const name = newName.value.trim();
   if (!name) return;
-  await store.create(name);
-  cancelCreate();
+  try {
+    await store.create(name);
+    toast.success("Workspace created");
+    cancelCreate();
+  } catch (e) {
+    toast.error(String(e));
+  }
 }
 </script>
 
