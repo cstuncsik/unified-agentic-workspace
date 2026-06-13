@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { ask } from "@tauri-apps/plugin-dialog";
 import { useWorkspacesStore } from "../stores/workspaces";
 import { useProjectsStore } from "../stores/projects";
 import { useSessionsStore } from "../stores/sessions";
@@ -12,11 +11,13 @@ import {
   type SessionStatus,
 } from "../types/session";
 import { useToast } from "../composables/useToast";
+import { useConfirm } from "../composables/useConfirm";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const sessions = useSessionsStore();
 const toast = useToast();
+const { confirm } = useConfirm();
 
 const newTitle = ref("");
 const newMode = ref<SessionMode>("research");
@@ -70,10 +71,7 @@ async function moveSession(id: string, previous: SessionStatus, event: Event) {
 }
 
 async function removeSession(id: string, title: string) {
-  const confirmed = await ask(`Delete session "${title}"?`, {
-    title: "Delete session",
-    kind: "warning",
-  });
+  const confirmed = await confirm(`Delete session "${title}"?`, "Delete session");
   if (!confirmed) return;
   try {
     await sessions.remove(id);

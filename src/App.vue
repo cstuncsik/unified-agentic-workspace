@@ -8,6 +8,7 @@ import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
 import ProjectsView from "./components/ProjectsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
+import ConfirmDialog from "./components/ConfirmDialog.vue";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
@@ -111,6 +112,7 @@ watch(
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>
+    <ConfirmDialog />
   </div>
 </template>
 

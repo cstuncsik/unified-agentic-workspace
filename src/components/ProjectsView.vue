@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { ask } from "@tauri-apps/plugin-dialog";
 import { useWorkspacesStore } from "../stores/workspaces";
 import { useProjectsStore } from "../stores/projects";
 import { useSessionsStore } from "../stores/sessions";
 import { PROJECT_MODES, type ProjectMode } from "../types/project";
 import { useToast } from "../composables/useToast";
+import { useConfirm } from "../composables/useConfirm";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const sessions = useSessionsStore();
 const toast = useToast();
+const { confirm } = useConfirm();
 
 const newName = ref("");
 const newMode = ref<ProjectMode>("research");
@@ -58,10 +59,7 @@ async function saveRename() {
 }
 
 async function removeProject(id: string, name: string) {
-  const confirmed = await ask(`Delete project "${name}"? Its sessions are kept and detached.`, {
-    title: "Delete project",
-    kind: "warning",
-  });
+  const confirmed = await confirm(`Delete project "${name}"? Its sessions are kept and detached.`, "Delete project");
   if (!confirmed) return;
   try {
     await projects.remove(id);
