@@ -46,13 +46,14 @@ watch(
       <div class="brand">UAW</div>
       <WorkspaceSwitcher />
       <nav class="nav">
-        <button class="nav__item nav__item--primary" type="button" @click="openInbox(null)">
+        <button class="re-button" data-variant="primary" type="button" @click="openInbox(null)">
           New Session
         </button>
 
         <button
-          class="nav__item"
-          :class="{ 'nav__item--active': activeView === 'inbox' && !sessions.filterGroup }"
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'inbox' && !sessions.filterGroup ? 'page' : undefined"
           type="button"
           @click="openInbox(null)"
         >
@@ -61,10 +62,9 @@ watch(
         <button
           v-for="group in STATUS_GROUPS"
           :key="group.key"
-          class="nav__item nav__item--sub"
-          :class="{
-            'nav__item--active': activeView === 'inbox' && sessions.filterGroup === group.key,
-          }"
+          class="re-button nav__sub"
+          data-variant="ghost"
+          :aria-current="activeView === 'inbox' && sessions.filterGroup === group.key ? 'page' : undefined"
           type="button"
           @click="openInbox(group.key)"
         >
@@ -72,8 +72,9 @@ watch(
         </button>
 
         <button
-          class="nav__item"
-          :class="{ 'nav__item--active': activeView === 'projects' }"
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'projects' ? 'page' : undefined"
           type="button"
           @click="activeView = 'projects'"
         >
@@ -83,7 +84,8 @@ watch(
         <button
           v-for="section in plannedSections"
           :key="section"
-          class="nav__item"
+          class="re-button"
+          data-variant="ghost"
           type="button"
           disabled
         >
@@ -154,8 +156,8 @@ body {
   flex-direction: column;
   gap: 1rem;
   padding: 1rem;
-  border-right: 1px solid var(--uaw-border);
-  background: var(--uaw-surface);
+  border-right: 1px solid var(--re-color-border);
+  background: var(--re-color-surface);
   overflow-y: auto;
 }
 
@@ -171,40 +173,17 @@ body {
   gap: 0.15rem;
 }
 
-.nav__item {
-  text-align: left;
-  padding: 0.45rem 0.55rem;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--uaw-muted);
-  font-size: 0.9rem;
-  cursor: pointer;
+.nav .re-button {
+  justify-content: flex-start;
+  width: 100%;
 }
 
-.nav__item:disabled {
-  cursor: not-allowed;
+.nav .re-button[aria-current="page"] {
+  background: var(--re-color-bg-muted);
 }
 
-.nav__item:not(:disabled):hover {
-  background: var(--uaw-surface-hover);
-  color: var(--uaw-text);
-}
-
-.nav__item--active {
-  background: var(--uaw-surface-hover);
-  color: var(--uaw-text);
-}
-
-.nav__item--primary {
-  color: var(--uaw-text);
-  border: 1px solid var(--uaw-border);
-  margin-bottom: 0.5rem;
-}
-
-.nav__item--sub {
+.nav__sub {
   padding-left: 1.4rem;
-  font-size: 0.82rem;
 }
 
 .sidebar__footer {
@@ -216,7 +195,7 @@ body {
 
 .sidebar__footer-label {
   font-size: 0.7rem;
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .main {
@@ -241,16 +220,16 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.15rem 0.5rem;
-  border: 1px solid var(--uaw-border);
+  border: 1px solid var(--re-color-border);
   border-radius: 999px;
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .muted {
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .error {
-  color: #ff6b6b;
+  color: var(--re-color-text-danger);
 }
 </style>
