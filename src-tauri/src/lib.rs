@@ -13,12 +13,21 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .expect("failed to resolve app data dir");
-            std::fs::create_dir_all(&app_data_dir).expect("failed to create app data dir");
-            let db_path = app_data_dir.join("uaw.sqlite");
+            // UAW_DB_PATH overrides the database location so e2e runs get a fresh,
+            // isolated SQLite file instead of the shared per-user app data dir.
+            let db_path = match std::env::var_os("UAW_DB_PATH") {
+                Some(path) => std::path::PathBuf::from(path),
+                None => {
+                    let app_data_dir = app
+                        .path()
+                        .app_data_dir()
+                        .expect("failed to resolve app data dir");
+                    app_data_dir.join("uaw.sqlite")
+                }
+            };
+            if let Some(parent) = db_path.parent() {
+                std::fs::create_dir_all(parent).expect("failed to create database directory");
+            }
             let conn = db::init_db(&db_path).expect("failed to initialize database");
             app.manage(Mutex::new(conn));
             Ok(())

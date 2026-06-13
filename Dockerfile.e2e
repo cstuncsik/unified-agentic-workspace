@@ -1,0 +1,47 @@
+# Mirror of the GitHub Actions e2e lane, so the same real-app suite can be run
+# locally on any OS (incl. macOS via Docker's Linux VM). It tests the Linux
+# webkit2gtk build of UAW — same Rust backend, SQLite, and Vue UI as the macOS
+# app, only the webview engine differs.
+#
+#   docker build -f Dockerfile.e2e -t uaw-e2e .
+#   docker run --rm uaw-e2e
+FROM rust:1-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# WebKit + WebDriver + virtual display deps (no Node here, so the cargo layer
+# below stays cached when the Node version changes).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libwebkit2gtk-4.1-dev \
+      build-essential curl wget file \
+      libxdo-dev libssl-dev \
+      libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev \
+      webkit2gtk-driver xvfb xauth ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Compile tauri-driver before touching Node, so Node bumps don't recompile it.
+RUN cargo install tauri-driver --version 2.0.6 --locked
+
+# Node 22 — required by pnpm 11 (pinned via package.json "packageManager").
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/* \
+ && corepack enable
+
+WORKDIR /app
+
+# Install JS deps first for layer caching.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+# Build the real debug binary (frontend + Rust) once at image build time.
+RUN pnpm e2e:build
+
+# Headless WebKit needs these or it hangs on launch under Xvfb.
+ENV WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+    WEBKIT_DISABLE_DMABUF_RENDERER=1
+
+# run-e2e.sh starts Xvfb itself (xvfb-run deadlocks with wdio's forked workers).
+CMD ["bash", "scripts/run-e2e.sh"]

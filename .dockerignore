@@ -1,0 +1,9 @@
+# Keep the build context small and avoid copying host artifacts over the
+# image's freshly installed/compiled ones.
+node_modules
+dist
+src-tauri/target
+.git
+.github
+*.log
+.DS_Store

@@ -100,7 +100,7 @@ async function removeProject(id: string, name: string) {
       No projects yet. Create a research, code, or mixed project to get started.
     </p>
     <ul v-else class="rows">
-      <li v-for="project in projects.list" :key="project.id" class="row">
+      <li v-for="project in projects.list" :key="project.id" class="row" data-testid="project-row">
         <template v-if="editingId === project.id">
           <input
             v-model="editName"

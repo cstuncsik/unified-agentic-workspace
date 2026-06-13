@@ -123,7 +123,12 @@ async function removeSession(id: string, title: string) {
           <span class="group__count">{{ group.sessions.length }}</span>
         </h3>
         <ul class="rows">
-          <li v-for="session in group.sessions" :key="session.id" class="row">
+          <li
+            v-for="session in group.sessions"
+            :key="session.id"
+            class="row"
+            data-testid="session-row"
+          >
             <span class="row__main">
               <span class="row__title">{{ session.title }}</span>
               <span class="row__meta">
