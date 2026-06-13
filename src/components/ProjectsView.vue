@@ -80,15 +80,15 @@ async function removeProject(id: string, name: string) {
     <form class="create" @submit.prevent="createProject">
       <input
         v-model="newName"
-        class="create__input"
+        class="re-input"
         type="text"
         placeholder="New project name"
         aria-label="New project name"
       />
-      <select v-model="newMode" class="create__select" aria-label="Project mode">
+      <select v-model="newMode" class="re-select" aria-label="Project mode">
         <option v-for="mode in PROJECT_MODES" :key="mode" :value="mode">{{ mode }}</option>
       </select>
-      <button class="create__submit" type="submit" :disabled="submitting || !newName.trim()">
+      <button class="re-button" data-variant="primary" type="submit" :disabled="submitting || !newName.trim()">
         Create
       </button>
     </form>
@@ -100,11 +100,12 @@ async function removeProject(id: string, name: string) {
       No projects yet. Create a research, code, or mixed project to get started.
     </p>
     <ul v-else class="rows">
-      <li v-for="project in projects.list" :key="project.id" class="row" data-testid="project-row">
+      <li v-for="project in projects.list" :key="project.id" class="re-card" data-testid="project-row">
         <template v-if="editingId === project.id">
           <input
             v-model="editName"
-            class="row__edit"
+            class="re-input"
+            data-size="sm"
             type="text"
             aria-label="Project name"
             @keyup.enter="saveRename"
@@ -113,29 +114,35 @@ async function removeProject(id: string, name: string) {
           <span class="row__actions">
             <button
               type="button"
-              class="row__action"
+              class="re-button"
+              data-variant="ghost"
+              data-size="sm"
               :disabled="!editName.trim()"
               @click="saveRename"
             >
               Save
             </button>
-            <button type="button" class="row__action" @click="cancelRename">Cancel</button>
+            <button type="button" class="re-button" data-variant="ghost" data-size="sm" @click="cancelRename">Cancel</button>
           </span>
         </template>
         <template v-else>
           <span class="row__title">{{ project.name }}</span>
-          <span class="badge">{{ project.mode }}</span>
+          <span class="re-badge" data-variant="neutral">{{ project.mode }}</span>
           <span class="row__actions">
             <button
               type="button"
-              class="row__action"
+              class="re-button"
+              data-variant="ghost"
+              data-size="sm"
               @click="startRename(project.id, project.name)"
             >
               Rename
             </button>
             <button
               type="button"
-              class="row__action row__action--danger"
+              class="re-button"
+              data-variant="danger"
+              data-size="sm"
               @click="removeProject(project.id, project.name)"
             >
               Delete
@@ -159,39 +166,6 @@ async function removeProject(id: string, name: string) {
   margin-bottom: 1rem;
 }
 
-.create__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.create__input,
-.create__select,
-.row__edit {
-  padding: 0.45rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid var(--uaw-border);
-  background: var(--uaw-bg);
-  color: var(--uaw-text);
-}
-
-.create__submit {
-  padding: 0.45rem 0.9rem;
-  border-radius: 6px;
-  border: 1px solid var(--uaw-border);
-  background: var(--uaw-surface);
-  color: var(--uaw-text);
-  cursor: pointer;
-}
-
-.create__submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.create__submit:not(:disabled):hover {
-  background: var(--uaw-surface-hover);
-}
-
 .rows {
   list-style: none;
   margin: 0;
@@ -201,26 +175,23 @@ async function removeProject(id: string, name: string) {
   gap: 0.35rem;
 }
 
-.row {
+.rows .re-card {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--uaw-border);
-  border-radius: 8px;
-  background: var(--uaw-surface);
-}
-
-.row__title,
-.row__edit {
-  flex: 1;
-  min-width: 0;
 }
 
 .row__title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rows .re-card .re-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .row__actions {
@@ -228,45 +199,11 @@ async function removeProject(id: string, name: string) {
   gap: 0.35rem;
 }
 
-.row__action {
-  padding: 0.25rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid var(--uaw-border);
-  background: transparent;
-  color: var(--uaw-muted);
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.row__action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.row__action:not(:disabled):hover {
-  background: var(--uaw-surface-hover);
-  color: var(--uaw-text);
-}
-
-.row__action--danger:not(:disabled):hover {
-  color: #ff6b6b;
-}
-
-.badge {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--uaw-border);
-  border-radius: 999px;
-  color: var(--uaw-muted);
-}
-
 .muted {
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .error {
-  color: #ff6b6b;
+  color: var(--re-color-text-danger);
 }
 </style>
