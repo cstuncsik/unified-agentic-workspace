@@ -1,0 +1,35 @@
+src/composables/useConfirm.ts
+  s_b49f7388e23022::t_a51d5a7230b46d 1-9,13-28
+  s_b49f7388e23022::t_946814b077e79e 10-12
+src/components/SessionsView.vue
+  s_b49f7388e23022::t_9407e9b9764352 20
+  s_b49f7388e23022::t_87653bb55ae430 14
+  s_b49f7388e23022::t_42e7452b40b51f 74
+src/App.vue
+  s_b49f7388e23022::t_b258bd1547e776 115
+  s_b49f7388e23022::t_cedc95daa33944 11
+src/components/ConfirmDialog.vue
+  s_b49f7388e23022::t_b120a8db2ccb44 1-36
+src/components/ProjectsView.vue
+  s_b49f7388e23022::t_e935b754c22396 8
+  s_b49f7388e23022::t_8fd208cc047ff1 14
+  s_b49f7388e23022::t_2bc7dd4cf6fbd0 62
+src-tauri/capabilities/default.json
+  s_b49f7388e23022::t_d42c0cfdacb330 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "98f4d1d2316d581775485964ca7b66c8b2205c6b",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
