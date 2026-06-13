@@ -11,7 +11,8 @@ const THEME_CLASS: Record<ThemeMode, string> = {
 
 export function getStoredTheme(): ThemeMode {
   const value = localStorage.getItem(STORAGE_KEY);
-  return value === "light" || value === "dark" || value === "system" ? value : "system";
+  // Default to the renascent dark-navy identity, not the OS preference.
+  return value === "light" || value === "dark" || value === "system" ? value : "dark";
 }
 
 /** Apply a theme mode to the document root and persist the choice. */

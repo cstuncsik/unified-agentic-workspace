@@ -8,6 +8,18 @@ describe("theme toggle", () => {
     await (await $("h1")).waitForExist({ timeout: 30_000 });
   });
 
+  it("defaults to dark renascent on first launch", async () => {
+    expect(await rootClass()).toBe("theme-renascent-dark");
+  });
+
+  it("renders the renascent brand gradient on primary CTAs", async () => {
+    const bgImage = await browser.execute(() => {
+      const btn = document.querySelector('.re-button[data-variant="brand"]');
+      return btn ? getComputedStyle(btn).backgroundImage : "none";
+    });
+    expect(bgImage).toContain("gradient");
+  });
+
   it("switches Light / Dark / System and persists the choice", async () => {
     const select = await $('[aria-label="Theme"]');
 

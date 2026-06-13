@@ -105,7 +105,7 @@ async function removeSession(id: string, title: string) {
       </select>
       <button
         class="re-button"
-        data-variant="primary"
+        data-variant="brand"
         type="submit"
         :disabled="submitting || !newTitle.trim()"
       >
@@ -134,7 +134,7 @@ async function removeSession(id: string, title: string) {
             <span class="row__main">
               <span class="row__title">{{ session.title }}</span>
               <span class="row__meta">
-                <span class="re-badge" data-variant="neutral">{{ session.mode }}</span>
+                <span class="re-badge">{{ session.mode }}</span>
                 <span v-if="session.project_id" class="row__project">
                   {{ projectNames.get(session.project_id) ?? "Unknown project" }}
                 </span>

@@ -47,7 +47,7 @@ watch(
       <div class="brand">UAW</div>
       <WorkspaceSwitcher />
       <nav class="nav">
-        <button class="re-button" data-variant="primary" type="button" @click="openInbox(null)">
+        <button class="re-button" data-variant="brand" type="button" @click="openInbox(null)">
           New Session
         </button>
 

@@ -92,7 +92,7 @@ async function removeProject(id: string, name: string) {
       </select>
       <button
         class="re-button"
-        data-variant="primary"
+        data-variant="brand"
         type="submit"
         :disabled="submitting || !newName.trim()"
       >
@@ -146,7 +146,7 @@ async function removeProject(id: string, name: string) {
         </template>
         <template v-else>
           <span class="row__title">{{ project.name }}</span>
-          <span class="re-badge" data-variant="neutral">{{ project.mode }}</span>
+          <span class="re-badge">{{ project.mode }}</span>
           <span class="row__actions">
             <button
               type="button"
