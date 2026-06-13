@@ -40,7 +40,8 @@ async function submitCreate() {
     <div v-if="!creating" class="switcher__row">
       <select
         v-model="selectedId"
-        class="switcher__select"
+        class="re-select"
+        data-size="sm"
         :disabled="store.list.length === 0"
         aria-label="Select workspace"
       >
@@ -49,7 +50,8 @@ async function submitCreate() {
         </option>
       </select>
       <button
-        class="switcher__new"
+        class="re-button"
+        data-variant="ghost"
         type="button"
         title="New workspace"
         aria-label="New workspace"
@@ -62,16 +64,17 @@ async function submitCreate() {
       <input
         ref="nameInput"
         v-model="newName"
-        class="switcher__input"
+        class="re-input"
+        data-size="sm"
         type="text"
         placeholder="Workspace name"
         aria-label="New workspace name"
         @keyup.esc="cancelCreate"
       />
-      <button class="switcher__new" type="submit" :disabled="!newName.trim()" title="Create">
+      <button class="re-button" data-variant="ghost" type="submit" :disabled="!newName.trim()" title="Create">
         ✓
       </button>
-      <button class="switcher__new" type="button" title="Cancel" @click="cancelCreate">×</button>
+      <button class="re-button" data-variant="ghost" type="button" title="Cancel" @click="cancelCreate">×</button>
     </form>
   </div>
 </template>
@@ -87,7 +90,7 @@ async function submitCreate() {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .switcher__row {
@@ -95,34 +98,13 @@ async function submitCreate() {
   gap: 0.4rem;
 }
 
-.switcher__select,
-.switcher__input {
+.switcher__row .re-select,
+.switcher__row .re-input {
   flex: 1;
   min-width: 0;
-  padding: 0.4rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--uaw-border);
-  background: var(--uaw-bg);
-  color: var(--uaw-text);
 }
 
-.switcher__new {
-  width: 2rem;
-  border-radius: 6px;
-  border: 1px solid var(--uaw-border);
-  background: var(--uaw-bg);
-  color: var(--uaw-text);
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.switcher__new:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.switcher__new:not(:disabled):hover {
-  background: var(--uaw-surface-hover);
+.switcher__row .re-button {
+  flex: 0 0 auto;
 }
 </style>
