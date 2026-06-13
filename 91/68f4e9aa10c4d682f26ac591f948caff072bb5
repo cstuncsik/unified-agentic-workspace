@@ -1,0 +1,26 @@
+e2e/specs/smoke.e2e.ts
+  s_b49f7388e23022::t_785224635b89c1 65-69
+src/App.vue
+  s_b49f7388e23022::t_21be0d46299f04 182,184-186
+  s_b49f7388e23022::t_364bc32859c116 176-181,183
+src/components/ProjectsView.vue
+  s_b49f7388e23022::t_f5b440a2acb0c2 199
+src/components/SessionsView.vue
+  s_b49f7388e23022::t_662c02087222e7 215,220-225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "9168f4e9aa10c4d682f26ac591f948caff072bb5",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
