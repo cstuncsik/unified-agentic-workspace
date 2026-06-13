@@ -173,8 +173,17 @@ body {
   width: 100%;
 }
 
-.nav .re-button[aria-current="page"] {
-  background: var(--re-color-bg-muted);
+.nav .re-button[data-variant="ghost"]:not([aria-current="page"]):not(:disabled):hover {
+  background: color-mix(in srgb, var(--re-color-accent-600) 12%, transparent);
+  color: var(--re-color-text);
+}
+
+.nav .re-button[data-variant="ghost"][aria-current="page"] {
+  background: color-mix(in srgb, var(--re-color-accent-600) 24%, transparent);
+  color: var(--re-color-text);
+  /* Full accent outline follows the button's rounded corners cleanly,
+     avoiding the clipped/odd left-edge a left-only inset bar produced. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--re-color-accent-600) 45%, transparent);
 }
 
 .nav__sub {

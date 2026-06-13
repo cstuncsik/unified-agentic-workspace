@@ -212,8 +212,17 @@ async function removeSession(id: string, title: string) {
 
 .rows .re-card {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.6rem;
+}
+
+/* .re-card defaults to a column layout and .re-select is inline-size:100%,
+   so without this the status dropdown stretches full width and the row wraps. */
+.rows .re-card .re-select {
+  flex: 0 0 auto;
+  inline-size: auto;
+  min-inline-size: 9rem;
 }
 
 .row__main {

@@ -62,6 +62,11 @@ describe("UAW core loop", () => {
     await expectText('[data-testid="session-row"] .row__title', "First task");
     // The originating project name is rendered on the session row.
     await expectText('[data-testid="session-row"] .row__project', "Alpha");
+    // The row lays out horizontally (.re-card defaults to flex-direction:column).
+    const flexDir = await browser.execute(
+      () => getComputedStyle(document.querySelector('[data-testid="session-row"]')!).flexDirection,
+    );
+    expect(flexDir).toBe("row");
   });
 
   it("moves the session through the status workflow", async () => {

@@ -196,6 +196,7 @@ async function removeProject(id: string, name: string) {
 
 .rows .re-card {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.6rem;
 }
