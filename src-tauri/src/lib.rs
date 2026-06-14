@@ -11,7 +11,6 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // UAW_DB_PATH overrides the database location so e2e runs get a fresh,
             // isolated SQLite file instead of the shared per-user app data dir.

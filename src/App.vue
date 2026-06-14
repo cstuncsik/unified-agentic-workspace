@@ -7,6 +7,8 @@ import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
 import ProjectsView from "./components/ProjectsView.vue";
+import ThemeToggle from "./components/ThemeToggle.vue";
+import ConfirmDialog from "./components/ConfirmDialog.vue";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
@@ -45,13 +47,14 @@ watch(
       <div class="brand">UAW</div>
       <WorkspaceSwitcher />
       <nav class="nav">
-        <button class="nav__item nav__item--primary" type="button" @click="openInbox(null)">
+        <button class="re-button" data-variant="brand" type="button" @click="openInbox(null)">
           New Session
         </button>
 
         <button
-          class="nav__item"
-          :class="{ 'nav__item--active': activeView === 'inbox' && !sessions.filterGroup }"
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'inbox' && !sessions.filterGroup ? 'page' : undefined"
           type="button"
           @click="openInbox(null)"
         >
@@ -60,10 +63,11 @@ watch(
         <button
           v-for="group in STATUS_GROUPS"
           :key="group.key"
-          class="nav__item nav__item--sub"
-          :class="{
-            'nav__item--active': activeView === 'inbox' && sessions.filterGroup === group.key,
-          }"
+          class="re-button nav__sub"
+          data-variant="ghost"
+          :aria-current="
+            activeView === 'inbox' && sessions.filterGroup === group.key ? 'page' : undefined
+          "
           type="button"
           @click="openInbox(group.key)"
         >
@@ -71,8 +75,9 @@ watch(
         </button>
 
         <button
-          class="nav__item"
-          :class="{ 'nav__item--active': activeView === 'projects' }"
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'projects' ? 'page' : undefined"
           type="button"
           @click="activeView = 'projects'"
         >
@@ -82,14 +87,18 @@ watch(
         <button
           v-for="section in plannedSections"
           :key="section"
-          class="nav__item"
+          class="re-button"
+          data-variant="ghost"
           type="button"
           disabled
         >
           {{ section }}
         </button>
       </nav>
-      <div class="sidebar__footer">Unified Agentic Workspace</div>
+      <div class="sidebar__footer">
+        <ThemeToggle />
+        <span class="sidebar__footer-label">Unified Agentic Workspace</span>
+      </div>
     </aside>
 
     <main class="main">
@@ -105,20 +114,11 @@ watch(
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>
+    <ConfirmDialog />
   </div>
 </template>
 
 <style>
-:root {
-  --uaw-bg: #0f1115;
-  --uaw-surface: #171a21;
-  --uaw-surface-hover: #1f232c;
-  --uaw-border: #2a2f3a;
-  --uaw-text: #e6e8ec;
-  --uaw-muted: #8a92a3;
-  color-scheme: dark;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -136,8 +136,6 @@ body {
     -apple-system,
     "Segoe UI",
     sans-serif;
-  background: var(--uaw-bg);
-  color: var(--uaw-text);
 }
 </style>
 
@@ -153,8 +151,8 @@ body {
   flex-direction: column;
   gap: 1rem;
   padding: 1rem;
-  border-right: 1px solid var(--uaw-border);
-  background: var(--uaw-surface);
+  border-right: 1px solid var(--re-color-border);
+  background: var(--re-color-surface);
   overflow-y: auto;
 }
 
@@ -170,46 +168,64 @@ body {
   gap: 0.15rem;
 }
 
-.nav__item {
-  text-align: left;
-  padding: 0.45rem 0.55rem;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--uaw-muted);
-  font-size: 0.9rem;
-  cursor: pointer;
+.nav .re-button {
+  justify-content: flex-start;
+  width: 100%;
 }
 
-.nav__item:disabled {
-  cursor: not-allowed;
+.nav .re-button[data-variant="ghost"]:not([aria-current="page"]):not(:disabled):hover {
+  background: color-mix(in srgb, var(--re-color-accent-600) 12%, transparent);
+  color: var(--re-color-text);
 }
 
-.nav__item:not(:disabled):hover {
-  background: var(--uaw-surface-hover);
-  color: var(--uaw-text);
+/* Pressed (mousedown). Declared after :hover so it wins while pressing — the
+   custom hover above otherwise suppresses the design system's :active state. */
+.nav .re-button[data-variant="ghost"]:not([aria-current="page"]):not(:disabled):active {
+  background: color-mix(in srgb, var(--re-color-accent-600) 20%, transparent);
+  color: var(--re-color-text);
 }
 
-.nav__item--active {
-  background: var(--uaw-surface-hover);
-  color: var(--uaw-text);
+.nav .re-button[data-variant="ghost"][aria-current="page"] {
+  background: color-mix(in srgb, var(--re-color-accent-600) 24%, transparent);
+  color: var(--re-color-text);
+  /* Full accent outline follows the button's rounded corners cleanly,
+     avoiding the clipped/odd left-edge a left-only inset bar produced. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--re-color-accent-600) 45%, transparent);
 }
 
-.nav__item--primary {
-  color: var(--uaw-text);
-  border: 1px solid var(--uaw-border);
-  margin-bottom: 0.5rem;
+/* The selected item also needs hover/press feedback (re-clicking the active
+   filter) — the custom hover/active rules above exclude aria-current. */
+.nav .re-button[data-variant="ghost"][aria-current="page"]:hover {
+  background: color-mix(in srgb, var(--re-color-accent-600) 32%, transparent);
 }
 
-.nav__item--sub {
+.nav .re-button[data-variant="ghost"][aria-current="page"]:active {
+  background: color-mix(in srgb, var(--re-color-accent-600) 40%, transparent);
+}
+
+/* Restore the DS keyboard focus ring on the selected item; its inset outline
+   would otherwise replace the focus box-shadow. */
+.nav .re-button[data-variant="ghost"][aria-current="page"]:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--re-color-accent-600) 45%, transparent),
+    var(--re-shadow-focus);
+  outline: none;
+}
+
+.nav__sub {
   padding-left: 1.4rem;
-  font-size: 0.82rem;
 }
 
 .sidebar__footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sidebar__footer-label {
   font-size: 0.7rem;
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .main {
@@ -234,16 +250,16 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.15rem 0.5rem;
-  border: 1px solid var(--uaw-border);
+  border: 1px solid var(--re-color-border);
   border-radius: 999px;
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .muted {
-  color: var(--uaw-muted);
+  color: var(--re-color-text-muted);
 }
 
 .error {
-  color: #ff6b6b;
+  color: var(--re-color-text-danger);
 }
 </style>
