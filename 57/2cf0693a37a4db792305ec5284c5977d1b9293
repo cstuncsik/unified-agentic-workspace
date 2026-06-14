@@ -1,0 +1,25 @@
+src/components/WorkspaceSwitcher.vue
+  s_b49f7388e23022::t_bce315aad0eed2 62
+  s_b49f7388e23022::t_fb91d6c7d5f0fb 85
+  s_b49f7388e23022::t_f54b05e1142c56 95
+src/components/ConfirmDialog.vue
+  s_b49f7388e23022::t_fecb5196c6a361 23-25,28-35
+src/App.vue
+  s_b49f7388e23022::t_1fe5e81bd488c7 181-187,196-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "572cf0693a37a4db792305ec5284c5977d1b9293",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
