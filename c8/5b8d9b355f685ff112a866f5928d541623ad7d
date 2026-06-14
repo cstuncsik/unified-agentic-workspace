@@ -1,0 +1,43 @@
+src/components/ConfirmDialog.vue
+  s_b49f7388e23022::t_d441cf1672327e 5
+  s_b49f7388e23022::t_c7c95fe5d11bd6 34
+src/composables/useConfirm.ts
+  s_b49f7388e23022::t_5f042cd53eec5f 6,16,29
+  s_b49f7388e23022::t_007e6896dbfe43 10
+src-tauri/src/services/git.rs
+  s_b49f7388e23022::t_336621839c7d9e 171-175,177-203,210
+  s_b49f7388e23022::t_c05ecac9e0ea69 31-38,43-44
+  s_b49f7388e23022::t_5484a1e5ff3b5c 337-347
+  s_b49f7388e23022::t_2c24b4fde25aec 142-143
+scripts/run-e2e.sh
+  s_b49f7388e23022::t_b23e79d074c287 21,23-31
+src/stores/codingWorkspaces.ts
+  s_b49f7388e23022::t_dd2303471cd728 45-59
+e2e/specs/coding.e2e.ts
+  s_b49f7388e23022::t_0e4220534266b0 2-3,10-12,56,64-79,88-90
+src-tauri/src/commands/coding_workspaces.rs
+  s_b49f7388e23022::t_cd10d34b0547e9 59-63
+src/types/codingWorkspace.ts
+  s_b49f7388e23022::t_d32c815b9a2882 22
+src/components/CodingView.vue
+  s_b49f7388e23022::t_352e51b8a5fb4a 233-236,238-247
+  s_b49f7388e23022::t_5db924ef4535f8 43-45,47,52-54,57,59
+  s_b49f7388e23022::t_4da7290b5b0212 118-127
+  s_b49f7388e23022::t_60b90a397abbb1 346-354
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "c85b8d9b355f685ff112a866f5928d541623ad7d",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
