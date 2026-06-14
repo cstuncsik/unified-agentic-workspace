@@ -42,7 +42,21 @@ export const useCodingWorkspacesStore = defineStore("codingWorkspaces", () => {
   }
 
   async function refreshDiff(id: string) {
-    diffs.value = { ...diffs.value, [id]: await api.getCodingWorkspaceDiff(id) };
+    try {
+      diffs.value = { ...diffs.value, [id]: await api.getCodingWorkspaceDiff(id) };
+    } catch (e) {
+      // Surface the failure so the panel shows an error instead of "Loading…".
+      diffs.value = {
+        ...diffs.value,
+        [id]: {
+          changed_files: [],
+          diff_stat: "",
+          diff_text: "",
+          is_clean: false,
+          error: String(e),
+        },
+      };
+    }
   }
 
   async function markReady(id: string) {

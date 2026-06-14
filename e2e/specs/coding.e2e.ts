@@ -1,12 +1,15 @@
 import { browser, $, $$, expect } from "@wdio/globals";
+import fs from "node:fs";
+import path from "node:path";
 
 const textOf = (selector: string) =>
   browser.execute((sel) => document.querySelector(sel)?.textContent ?? "", selector);
 
 /**
  * Milestone 7 end-to-end: from a code project + attached repo, create a git
- * worktree, inspect its (clean) diff, mark it ready for review, and discard it.
- * Self-contained — runs against this spec's own fresh database (see wdio.conf).
+ * worktree, review its diff (clean, then with an untracked change), mark it
+ * ready, and discard it. Self-contained — runs against this spec's own fresh
+ * database and worktrees dir (see wdio.conf), using the run-e2e.sh fixture repo.
  */
 describe("coding workspaces", () => {
   before(async () => {
@@ -50,7 +53,7 @@ describe("coding workspaces", () => {
     );
   });
 
-  it("shows a clean diff, marks ready, then discards", async () => {
+  it("reviews a clean diff, then surfaces an untracked file", async () => {
     const row = await $('[data-testid="coding-row"]');
 
     await row.$("button*=View diff").click();
@@ -58,6 +61,22 @@ describe("coding workspaces", () => {
       timeout: 10_000,
       timeoutMsg: "expected a clean-worktree diff",
     });
+    await row.$("button*=Hide diff").click();
+
+    // Write an untracked file straight into the worktree on disk (the wdio worker
+    // shares the filesystem with the app), then re-open the diff.
+    const worktreePath = (await textOf('[data-testid="coding-row"] .coding__path')).trim();
+    fs.writeFileSync(path.join(worktreePath, "untracked.txt"), "new file\n");
+
+    await row.$("button*=View diff").click();
+    await browser.waitUntil(async () => (await textOf(".coding__diff")).includes("untracked.txt"), {
+      timeout: 10_000,
+      timeoutMsg: "expected the untracked file to be listed in the diff",
+    });
+  });
+
+  it("marks ready, then discards the dirty worktree", async () => {
+    const row = await $('[data-testid="coding-row"]');
 
     await row.$("button*=Mark ready").click();
     await browser.waitUntil(
@@ -66,7 +85,9 @@ describe("coding workspaces", () => {
     );
 
     await row.$("button*=Discard").click();
-    await $(".re-dialog").$("button*=Delete").click();
+    const dialog = await $(".re-dialog");
+    await dialog.waitForDisplayed({ timeout: 5_000 });
+    await dialog.$("button*=Discard").click();
     await browser.waitUntil(async () => (await $$('[data-testid="coding-row"]').length) === 0, {
       timeout: 10_000,
       timeoutMsg: "expected the worktree row to be removed after discard",

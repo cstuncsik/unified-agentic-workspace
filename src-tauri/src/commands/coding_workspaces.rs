@@ -56,6 +56,11 @@ pub fn create_coding_workspace(
     if branch_name.is_empty() {
         return Err("Branch name cannot be empty".into());
     }
+    // A leading '-' would be parsed by `git worktree add` as an option (e.g.
+    // `--lock`), so reject it (option injection from the renderer boundary).
+    if base_branch.starts_with('-') || branch_name.starts_with('-') {
+        return Err("Branch names cannot start with '-'".into());
+    }
 
     // Resolve the project + repository and their shared workspace under the lock,
     // then release it before touching git.

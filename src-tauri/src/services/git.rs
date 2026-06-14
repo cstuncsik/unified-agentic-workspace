@@ -28,15 +28,20 @@ pub struct GitInspection {
 /// Run a read-only `git -C <repo> <args...>` command and return trimmed stdout.
 /// Only ever used for inspection — never for writes or running repo scripts.
 ///
-/// `-c core.fsmonitor=` overrides any `core.fsmonitor` set in the target repo's
-/// `.git/config`. `git status` treats that setting as a hook command and would
-/// otherwise execute it — so an attached (e.g. cloned) repo could run arbitrary
-/// code during inspection. Args are passed as argv (never through a shell), so
-/// there is no injection from the path or branch names.
+/// An attached (e.g. cloned/third-party) repo is treated as untrusted, so we
+/// neutralize config-driven code-execution vectors on every call:
+/// - `core.fsmonitor=` — `git status` would otherwise run it as a hook command;
+/// - `core.hooksPath=/dev/null` — disables repo hooks (e.g. `post-checkout` runs
+///   during `worktree add`).
+/// (`git diff` callers additionally pass `--no-ext-diff --no-textconv`.)
+/// Args are passed as argv (never a shell), so there is no injection from paths
+/// or branch names.
 fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new("git")
         .arg("-c")
         .arg("core.fsmonitor=")
+        .arg("-c")
+        .arg("core.hooksPath=/dev/null")
         .arg("-C")
         .arg(repo)
         .args(args)
@@ -134,6 +139,8 @@ pub struct WorktreeDiff {
     pub diff_text: String,
     /// True when there are no working-tree changes.
     pub is_clean: bool,
+    /// Set when the worktree could not be inspected (e.g. its path is gone).
+    pub error: Option<String>,
 }
 
 /// Create an isolated worktree on a new branch: `git worktree add -b <branch>
@@ -161,23 +168,46 @@ pub fn remove_worktree(repo: &Path, worktree_path: &Path, force: bool) -> Result
 }
 
 /// Collect the working-tree changes in a worktree (relative to its HEAD).
+///
+/// `changed_files` (from `status --porcelain`) lists every change incl. untracked
+/// files, which `git diff HEAD` does not show — so the UI renders this list. The
+/// diff invocations pass `--no-ext-diff --no-textconv` to prevent the repo's
+/// config-driven diff drivers from executing arbitrary commands.
 pub fn worktree_diff(worktree: &Path) -> WorktreeDiff {
-    let changed_files: Vec<String> = run_git(worktree, &["status", "--porcelain"])
-        .map(|o| {
-            o.lines()
-                .map(|l| l.trim_end().to_string())
-                .filter(|l| !l.is_empty())
-                .collect()
-        })
-        .unwrap_or_default();
-    let diff_stat = run_git(worktree, &["diff", "--stat", "HEAD"]).unwrap_or_default();
-    let diff_text = run_git(worktree, &["diff", "HEAD"]).unwrap_or_default();
+    // If status itself fails the worktree is gone/broken — report it rather than
+    // silently looking clean.
+    let status = match run_git(worktree, &["status", "--porcelain"]) {
+        Ok(s) => s,
+        Err(e) => {
+            return WorktreeDiff {
+                is_clean: false,
+                error: Some(e),
+                ..Default::default()
+            };
+        }
+    };
+    let changed_files: Vec<String> = status
+        .lines()
+        .map(|l| l.trim_end().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+    let diff_stat = run_git(
+        worktree,
+        &["diff", "--no-ext-diff", "--no-textconv", "--stat", "HEAD"],
+    )
+    .unwrap_or_default();
+    let diff_text = run_git(
+        worktree,
+        &["diff", "--no-ext-diff", "--no-textconv", "HEAD"],
+    )
+    .unwrap_or_default();
     let is_clean = changed_files.is_empty();
     WorktreeDiff {
         changed_files,
         diff_stat,
         diff_text,
         is_clean,
+        error: None,
     }
 }
 
@@ -304,6 +334,17 @@ mod tests {
         assert!(!dirty.is_clean);
         assert!(dirty.changed_files.iter().any(|f| f.contains("README.md")));
         assert!(dirty.diff_text.contains("changed in worktree"));
+        assert!(dirty.error.is_none());
+
+        // Untracked files don't show in `git diff HEAD` but must still be listed
+        // in changed_files so review never silently drops new files.
+        fs::write(wt.join("brand_new.txt"), "hello\n").unwrap();
+        let with_untracked = worktree_diff(&wt);
+        assert!(!with_untracked.is_clean);
+        assert!(with_untracked
+            .changed_files
+            .iter()
+            .any(|f| f.contains("brand_new.txt")));
 
         // Removing a dirty worktree requires force; the branch survives.
         assert!(remove_worktree(&repo, &wt, false).is_err());

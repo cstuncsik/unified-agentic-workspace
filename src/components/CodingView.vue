@@ -40,18 +40,23 @@ const canCreate = computed(
 );
 
 // When the repository changes, load its branches and default the base branch.
+// A monotonic token discards a stale response if the repo is switched again
+// (or reset) before the previous branch fetch resolves.
+let branchToken = 0;
 watch(newRepoId, async (repoId) => {
+  const token = ++branchToken;
   branches.value = [];
   newBaseBranch.value = "";
   if (!repoId) return;
   try {
-    branches.value = await listRepositoryBranches(repoId);
+    const result = await listRepositoryBranches(repoId);
+    if (token !== branchToken) return;
+    branches.value = result;
     const repo = repositories.list.find((r) => r.id === repoId);
     newBaseBranch.value =
-      repo && branches.value.includes(repo.default_branch)
-        ? repo.default_branch
-        : (branches.value[0] ?? "");
+      repo && result.includes(repo.default_branch) ? repo.default_branch : (result[0] ?? "");
   } catch (e) {
+    if (token !== branchToken) return;
     toast.error(String(e));
   }
 });
@@ -110,16 +115,16 @@ async function markReady(id: string) {
 
 async function discardWorktree(id: string, branch: string) {
   // Refresh the diff so the confirmation can warn about uncommitted work.
-  try {
-    await coding.refreshDiff(id);
-  } catch {
-    // fall through; the confirm still gates the destructive action
-  }
-  const dirty = coding.diffs[id] ? !coding.diffs[id].is_clean : false;
-  const message = dirty
-    ? `Discard worktree "${branch}"? It has uncommitted changes that will be lost. The branch is kept.`
-    : `Discard worktree "${branch}"? The branch is kept; only the working tree is removed.`;
-  if (!(await confirm(message, "Discard worktree"))) return;
+  await coding.refreshDiff(id);
+  const diff = coding.diffs[id];
+  const uncertain = !diff || diff.error != null;
+  const dirty = diff ? !diff.is_clean : false;
+  const message = uncertain
+    ? `Discard worktree "${branch}"? Its state could not be read; any uncommitted changes will be lost. The branch is kept.`
+    : dirty
+      ? `Discard worktree "${branch}"? It has uncommitted changes that will be lost. The branch is kept.`
+      : `Discard worktree "${branch}"? The branch is kept; only the working tree is removed.`;
+  if (!(await confirm(message, "Discard worktree", "Discard"))) return;
   try {
     await coding.discard(id, true);
     if (expandedId.value === id) expandedId.value = null;
@@ -225,10 +230,21 @@ async function discardWorktree(id: string, branch: string) {
         </div>
         <div v-if="expandedId === cw.id" class="coding__diff">
           <template v-if="coding.diffs[cw.id]">
-            <p v-if="coding.diffs[cw.id].is_clean" class="muted">No changes in the worktree yet.</p>
+            <p v-if="coding.diffs[cw.id].error" class="error">{{ coding.diffs[cw.id].error }}</p>
+            <p v-else-if="coding.diffs[cw.id].is_clean" class="muted">
+              No changes in the worktree yet.
+            </p>
             <template v-else>
-              <pre class="diff__stat">{{ coding.diffs[cw.id].diff_stat }}</pre>
-              <pre class="diff__text">{{ coding.diffs[cw.id].diff_text }}</pre>
+              <!-- changed_files includes untracked files, which the patch below omits. -->
+              <ul class="diff__files">
+                <li v-for="f in coding.diffs[cw.id].changed_files" :key="f">{{ f }}</li>
+              </ul>
+              <pre v-if="coding.diffs[cw.id].diff_stat" class="diff__stat">{{
+                coding.diffs[cw.id].diff_stat
+              }}</pre>
+              <pre v-if="coding.diffs[cw.id].diff_text" class="diff__text">{{
+                coding.diffs[cw.id].diff_text
+              }}</pre>
             </template>
           </template>
           <p v-else class="muted">Loading diff…</p>
@@ -325,6 +341,15 @@ async function discardWorktree(id: string, branch: string) {
 .coding__diff {
   border-top: 1px solid var(--re-color-border);
   padding-top: 0.5rem;
+}
+
+.diff__files {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  font-size: 0.78rem;
+  font-family: ui-monospace, monospace;
+  color: var(--re-color-text-muted);
 }
 
 .diff__stat,

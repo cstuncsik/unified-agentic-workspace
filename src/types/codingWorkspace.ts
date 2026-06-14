@@ -19,4 +19,5 @@ export interface WorktreeDiff {
   diff_stat: string;
   diff_text: string;
   is_clean: boolean;
+  error: string | null;
 }
