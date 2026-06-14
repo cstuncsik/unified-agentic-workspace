@@ -1,0 +1,33 @@
+src-tauri/src/services/git.rs
+  s_b49f7388e23022::t_dc5fd006961e43 204-209
+  s_b49f7388e23022::t_f4bcf954e82718 30-35,38-39
+  s_b49f7388e23022::t_ec5cd7d33d67c0 76-78,82
+  s_b49f7388e23022::t_86a90082db13ea 202-203,210-244
+src/stores/repositories.ts
+  s_b49f7388e23022::t_906171ff2059b8 62,64-66
+Dockerfile.e2e
+  s_b49f7388e23022::t_e17722f6777c33 42-49
+e2e/specs/sources.e2e.ts
+  s_b49f7388e23022::t_3cf5dc24af732d 30-44,47-51,55-58
+  s_b49f7388e23022::t_82141480ddcdf8 54
+  s_b49f7388e23022::t_203b88e18aeef1 52-53
+  s_b49f7388e23022::t_dc5fd006961e43 45-46
+src-tauri/src/commands/repositories.rs
+  s_b49f7388e23022::t_631ed0775cfdc4 92-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "e0f981fa610fddd4e6132ae421e965151a01a635",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
