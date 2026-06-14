@@ -38,14 +38,8 @@ COPY . .
 
 # Build the real debug binary (frontend + Rust) once at image build time.
 RUN pnpm e2e:build
-
-# A fixture git repo the Sources e2e attaches (positive attach -> status -> detach).
-RUN git config --global user.email "e2e@uaw.local" \
- && git config --global user.name "UAW E2E" \
- && git init -b main /tmp/fixture-repo \
- && echo "# fixture" > /tmp/fixture-repo/README.md \
- && git -C /tmp/fixture-repo add . \
- && git -C /tmp/fixture-repo commit -m "init"
+# (The Sources fixture repo is created by scripts/run-e2e.sh at run time, so it
+# exists identically in this Docker lane and the native CI runner.)
 
 # Headless WebKit needs these or it hangs on launch under Xvfb.
 ENV WEBKIT_DISABLE_COMPOSITING_MODE=1 \
