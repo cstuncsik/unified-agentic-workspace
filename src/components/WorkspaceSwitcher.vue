@@ -59,6 +59,7 @@ async function submitCreate() {
       <button
         class="re-button"
         data-variant="ghost"
+        data-size="sm"
         type="button"
         title="New workspace"
         aria-label="New workspace"
@@ -81,6 +82,7 @@ async function submitCreate() {
       <button
         class="re-button"
         data-variant="ghost"
+        data-size="sm"
         type="submit"
         :disabled="!newName.trim()"
         title="Create"
@@ -90,6 +92,7 @@ async function submitCreate() {
       <button
         class="re-button"
         data-variant="ghost"
+        data-size="sm"
         type="button"
         title="Cancel"
         @click="cancelCreate"

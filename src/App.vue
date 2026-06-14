@@ -178,12 +178,38 @@ body {
   color: var(--re-color-text);
 }
 
+/* Pressed (mousedown). Declared after :hover so it wins while pressing — the
+   custom hover above otherwise suppresses the design system's :active state. */
+.nav .re-button[data-variant="ghost"]:not([aria-current="page"]):not(:disabled):active {
+  background: color-mix(in srgb, var(--re-color-accent-600) 20%, transparent);
+  color: var(--re-color-text);
+}
+
 .nav .re-button[data-variant="ghost"][aria-current="page"] {
   background: color-mix(in srgb, var(--re-color-accent-600) 24%, transparent);
   color: var(--re-color-text);
   /* Full accent outline follows the button's rounded corners cleanly,
      avoiding the clipped/odd left-edge a left-only inset bar produced. */
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--re-color-accent-600) 45%, transparent);
+}
+
+/* The selected item also needs hover/press feedback (re-clicking the active
+   filter) — the custom hover/active rules above exclude aria-current. */
+.nav .re-button[data-variant="ghost"][aria-current="page"]:hover {
+  background: color-mix(in srgb, var(--re-color-accent-600) 32%, transparent);
+}
+
+.nav .re-button[data-variant="ghost"][aria-current="page"]:active {
+  background: color-mix(in srgb, var(--re-color-accent-600) 40%, transparent);
+}
+
+/* Restore the DS keyboard focus ring on the selected item; its inset outline
+   would otherwise replace the focus box-shadow. */
+.nav .re-button[data-variant="ghost"][aria-current="page"]:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--re-color-accent-600) 45%, transparent),
+    var(--re-shadow-focus);
+  outline: none;
 }
 
 .nav__sub {
