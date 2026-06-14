@@ -1,0 +1,60 @@
+src-tauri/src/commands/coding_workspaces.rs
+  s_b49f7388e23022::t_8bfbc9fa938ca5 157-161
+  s_b49f7388e23022::t_aee547a25dd24f 1-156,162-165
+src-tauri/src/models/coding_workspace.rs
+  s_b49f7388e23022::t_8bfbc9fa938ca5 207-212
+  s_b49f7388e23022::t_7fe1cd7339a9ed 1-206,213-226
+src-tauri/src/models/workspace.rs
+  s_b49f7388e23022::t_612e91d1f58b5d 144
+src/App.vue
+  s_b49f7388e23022::t_c00f869cf922fd 45
+  s_b49f7388e23022::t_a16fef92680edf 7,13,21,23
+  s_b49f7388e23022::t_0d4fbe1f69b8e8 143
+  s_b49f7388e23022::t_5975577e5a63ab 106-114
+e2e/specs/coding.e2e.ts
+  s_b49f7388e23022::t_767e0ea024a944 1-75
+src/types/codingWorkspace.ts
+  s_b49f7388e23022::t_024cf9e9aff772 1-22
+src/stores/codingWorkspaces.ts
+  s_b49f7388e23022::t_2f7dac28d9c903 1-65
+src-tauri/src/lib.rs
+  s_b49f7388e23022::t_a90f1e80c7e78f 59-64
+src-tauri/src/commands/mod.rs
+  s_b49f7388e23022::t_612e91d1f58b5d 1
+src-tauri/src/services/git.rs
+  s_b49f7388e23022::t_40d5dce5c2230d 288-311,315-318
+  s_b49f7388e23022::t_efab9336f25e37 126-183
+  s_b49f7388e23022::t_8bfbc9fa938ca5 312-314
+src-tauri/src/db/mod.rs
+  s_b49f7388e23022::t_612e91d1f58b5d 25-29
+wdio.conf.ts
+  s_b49f7388e23022::t_da1dca87d2b49b 14
+  s_b49f7388e23022::t_c443204013538c 54-57
+  s_b49f7388e23022::t_c6988f4d7f2871 45-53,65-71
+src/api/codingWorkspaces.ts
+  s_b49f7388e23022::t_aeb6aaa0edb1ae 1-18,20-33
+  s_b49f7388e23022::t_2c5d2ca1ca6abf 19
+src/components/CodingView.vue
+  s_b49f7388e23022::t_2c5d2ca1ca6abf 163-168,196-202
+  s_b49f7388e23022::t_df0ec8f7491344 1-162,169-195,203-355
+src-tauri/src/db/migrations/0004_coding_workspaces.sql
+  s_b49f7388e23022::t_88ec6ce3531021 1-20
+src-tauri/src/models/mod.rs
+  s_b49f7388e23022::t_612e91d1f58b5d 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "e6fa079adf20247b5fdfa676d2be296f0eea10e4",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
