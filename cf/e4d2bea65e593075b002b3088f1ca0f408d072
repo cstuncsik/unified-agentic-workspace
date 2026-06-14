@@ -1,0 +1,66 @@
+src/stores/repositories.ts
+  s_b49f7388e23022::t_db4052ffa11465 41-53
+  s_b49f7388e23022::t_31d3081a6f92f1 1-40,54-77
+src/components/SourcesView.vue
+  s_b49f7388e23022::t_5081461b0ffe85 51-54,101-106,111,113-114
+  s_b49f7388e23022::t_16e2876be3d407 1-50,55-100,107-110,112,115-268
+e2e/specs/sources.e2e.ts
+  s_b49f7388e23022::t_dfbd9041de0a4d 24-26
+  s_b49f7388e23022::t_a208cd2e3592d4 1-23,27-30
+src-tauri/src/db/mod.rs
+  s_b49f7388e23022::t_a7f38b5fb7aafd 20-24
+src/types/repository.ts
+  s_b49f7388e23022::t_fe52e0c2e8a1f8 1-18,20-21
+  s_b49f7388e23022::t_48d18aa275cc62 19
+src-tauri/src/services/mod.rs
+  s_b49f7388e23022::t_06830dbbdfb601 1
+src-tauri/src/models/mod.rs
+  s_b49f7388e23022::t_24e28fd0340cab 2
+src-tauri/src/commands/repositories.rs
+  s_b49f7388e23022::t_ee10dfdebe5e7c 65-70
+  s_b49f7388e23022::t_4bd2c63f163308 1-64,71-95,97-130,132-141
+  s_b49f7388e23022::t_ea7c6647da67bc 131
+  s_b49f7388e23022::t_2b77ef79e66464 96
+src/api/repositories.ts
+  s_b49f7388e23022::t_3de34e721c92fb 1-22,24-37
+  s_b49f7388e23022::t_5081461b0ffe85 23
+src-tauri/src/services/git.rs
+  s_b49f7388e23022::t_a0920908503bdb 21-23
+  s_b49f7388e23022::t_584f2336d551a9 1-20,24-47,51-99,101-152,154-192
+  s_b49f7388e23022::t_9ac7d174fb3769 48-50
+  s_b49f7388e23022::t_a5fb1256c56f3f 100
+  s_b49f7388e23022::t_8bfeff91617185 153
+src-tauri/src/commands/mod.rs
+  s_b49f7388e23022::t_24e28fd0340cab 2
+src-tauri/src/models/repository.rs
+  s_b49f7388e23022::t_d5f40305778fe8 148-150
+  s_b49f7388e23022::t_76e34cbea34769 1-147,151-157
+src-tauri/src/lib.rs
+  s_b49f7388e23022::t_c3f9ee9e5e6d9b 4
+  s_b49f7388e23022::t_f44658f1860718 52-58
+src-tauri/src/models/workspace.rs
+  s_b49f7388e23022::t_24e28fd0340cab 144
+src/App.vue
+  s_b49f7388e23022::t_3ef6006d0f2d28 92-100
+  s_b49f7388e23022::t_baa7e79921eafb 128
+  s_b49f7388e23022::t_63589fadd9d689 41
+  s_b49f7388e23022::t_9c0e4e667bbc9c 6,11,18,20,24
+src-tauri/src/db/migrations/0003_repository_sources.sql
+  s_b49f7388e23022::t_66fe37c0a95a04 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "cfe4d2bea65e593075b002b3088f1ca0f408d072",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
