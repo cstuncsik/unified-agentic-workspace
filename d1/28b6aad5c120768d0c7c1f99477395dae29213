@@ -1,0 +1,21 @@
+scripts/run-e2e.sh
+  s_b49f7388e23022::t_8a7a62ff68c554 21-31
+Dockerfile.e2e
+  s_b49f7388e23022::t_2adb6cb2a33af6 41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "d128b6aad5c120768d0c7c1f99477395dae29213",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
