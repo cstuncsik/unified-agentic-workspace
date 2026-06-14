@@ -22,6 +22,11 @@ const MIGRATIONS: &[(i64, &str, &str)] = &[
         "repository_sources",
         include_str!("migrations/0003_repository_sources.sql"),
     ),
+    (
+        4,
+        "coding_workspaces",
+        include_str!("migrations/0004_coding_workspaces.sql"),
+    ),
 ];
 
 /// Open (creating if needed) the SQLite database at `db_path`, enable foreign keys,
