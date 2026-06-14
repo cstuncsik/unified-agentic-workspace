@@ -27,8 +27,16 @@ pub struct GitInspection {
 
 /// Run a read-only `git -C <repo> <args...>` command and return trimmed stdout.
 /// Only ever used for inspection — never for writes or running repo scripts.
+///
+/// `-c core.fsmonitor=` overrides any `core.fsmonitor` set in the target repo's
+/// `.git/config`. `git status` treats that setting as a hook command and would
+/// otherwise execute it — so an attached (e.g. cloned) repo could run arbitrary
+/// code during inspection. Args are passed as argv (never through a shell), so
+/// there is no injection from the path or branch names.
 fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new("git")
+        .arg("-c")
+        .arg("core.fsmonitor=")
         .arg("-C")
         .arg(repo)
         .args(args)
@@ -65,11 +73,13 @@ fn default_branch(repo: &Path) -> Option<String> {
     current_branch(repo)
 }
 
-/// The currently checked-out branch (or `HEAD` when detached).
+/// The currently checked-out branch, or `None` when detached. `git rev-parse
+/// --abbrev-ref HEAD` returns the literal token "HEAD" in a detached state; we
+/// treat that as "no branch" rather than storing/showing "HEAD" as a branch.
 pub fn current_branch(repo: &Path) -> Option<String> {
     run_git(repo, &["rev-parse", "--abbrev-ref", "HEAD"])
         .ok()
-        .filter(|b| !b.is_empty())
+        .filter(|b| !b.is_empty() && b != "HEAD")
 }
 
 /// Whether the work tree has any staged or unstaged changes.
@@ -187,6 +197,49 @@ mod tests {
         let branches = list_branches(&repo).unwrap();
         assert!(branches.contains(&"main".to_string()));
         assert!(branches.contains(&"feature/x".to_string()));
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    fn git(repo: &std::path::Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .status()
+            .unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    #[test]
+    fn detached_head_is_not_reported_as_a_branch() {
+        let repo = temp_repo();
+        fs::write(repo.join("README.md"), "# more\n").unwrap();
+        git(&repo, &["commit", "-am", "second"]);
+        git(&repo, &["checkout", "--detach", "HEAD~1"]);
+
+        let info = inspect(&repo);
+        assert!(info.is_git_repo);
+        // Detached HEAD must not surface the literal "HEAD" as a branch.
+        assert_eq!(info.current_branch, None);
+        // default_branch still resolves to the local main, never "HEAD".
+        assert_eq!(info.default_branch.as_deref(), Some("main"));
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn inspect_canonicalizes_a_subdirectory_to_the_repo_root() {
+        let repo = temp_repo();
+        let sub = repo.join("nested/dir");
+        fs::create_dir_all(&sub).unwrap();
+
+        let info = inspect(&sub);
+        assert!(info.is_git_repo);
+        let top = info.toplevel.expect("toplevel resolved");
+        assert_eq!(
+            fs::canonicalize(&top).unwrap(),
+            fs::canonicalize(&repo).unwrap(),
+            "subdirectory should canonicalize to the repo root"
+        );
         fs::remove_dir_all(&repo).ok();
     }
 }

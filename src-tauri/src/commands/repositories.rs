@@ -89,6 +89,16 @@ pub fn create_repository_source(
         }
     }
 
+    // Canonicalization means two subdirectories of one repo resolve to the same
+    // root, so guard against attaching the same repository twice.
+    if repository::list(&conn, &workspace_id)
+        .map_err(|e| e.to_string())?
+        .iter()
+        .any(|r| r.local_path == stored_path)
+    {
+        return Err("This repository is already attached to the workspace".into());
+    }
+
     repository::create(
         &conn,
         &workspace_id,

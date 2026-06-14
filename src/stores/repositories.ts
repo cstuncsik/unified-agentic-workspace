@@ -59,7 +59,11 @@ export const useRepositoriesStore = defineStore("repositories", () => {
   }
 
   async function create(input: CreateRepositoryInput) {
+    const token = loadToken;
     const repo = await api.createRepositorySource(input);
+    // If the workspace changed while the attach was in flight, don't leak the
+    // new repo into the other workspace's now-current list.
+    if (token !== loadToken) return repo;
     list.value.push(repo);
     await refreshStatus(repo.id);
     return repo;
