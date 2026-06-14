@@ -215,6 +215,8 @@ async function removeSession(id: string, title: string) {
   flex-direction: row;
   align-items: center;
   gap: 0.6rem;
+  /* Bare .re-card has no padding (it lives in .re-card__body, unused here). */
+  padding: 0.6rem 0.85rem;
 }
 
 /* .re-card defaults to a column layout and .re-select is inline-size:100%,

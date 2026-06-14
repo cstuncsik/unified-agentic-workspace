@@ -199,6 +199,8 @@ async function removeProject(id: string, name: string) {
   flex-direction: row;
   align-items: center;
   gap: 0.6rem;
+  /* Bare .re-card has no padding (it lives in .re-card__body, unused here). */
+  padding: 0.6rem 0.85rem;
 }
 
 .row__title {
