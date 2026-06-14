@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod models;
+mod services;
 mod util;
 
 use std::sync::Mutex;
@@ -48,6 +49,13 @@ pub fn run() {
             commands::sessions::update_session,
             commands::sessions::update_session_status,
             commands::sessions::delete_session,
+            commands::repositories::validate_repository_path,
+            commands::repositories::list_repository_sources,
+            commands::repositories::get_repository_source,
+            commands::repositories::create_repository_source,
+            commands::repositories::get_repository_status,
+            commands::repositories::list_repository_branches,
+            commands::repositories::delete_repository_source,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

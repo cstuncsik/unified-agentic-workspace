@@ -38,6 +38,8 @@ COPY . .
 
 # Build the real debug binary (frontend + Rust) once at image build time.
 RUN pnpm e2e:build
+# (The Sources fixture repo is created by scripts/run-e2e.sh at run time, so it
+# exists identically in this Docker lane and the native CI runner.)
 
 # Headless WebKit needs these or it hangs on launch under Xvfb.
 ENV WEBKIT_DISABLE_COMPOSITING_MODE=1 \

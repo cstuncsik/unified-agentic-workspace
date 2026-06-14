@@ -18,6 +18,17 @@ for _ in $(seq 1 40); do
   sleep 0.25
 done
 
+# Fixture git repo the Sources spec attaches. Created here (not in the Docker
+# image) so it exists in BOTH lanes: the Docker mirror and the native CI runner.
+# Idempotent; uses per-command identity so it never touches global git config.
+if [ ! -d /tmp/fixture-repo/.git ]; then
+  git init -b main /tmp/fixture-repo >/dev/null
+  echo "# fixture" >/tmp/fixture-repo/README.md
+  git -C /tmp/fixture-repo add . >/dev/null
+  git -C /tmp/fixture-repo -c user.email=e2e@uaw.local -c user.name="UAW E2E" \
+    commit -m init >/dev/null
+fi
+
 # Invoke the wdio binary directly (skips pnpm's pre-run deps check). Not exec'd
 # so the EXIT trap still runs to stop Xvfb; set -e propagates wdio's exit code.
 node_modules/.bin/wdio run wdio.conf.ts
