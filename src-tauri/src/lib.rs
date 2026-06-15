@@ -62,6 +62,10 @@ pub fn run() {
             commands::coding_workspaces::get_coding_workspace_diff,
             commands::coding_workspaces::mark_coding_workspace_ready_for_review,
             commands::coding_workspaces::discard_coding_workspace,
+            commands::reviews::list_reviews,
+            commands::reviews::get_review,
+            commands::reviews::create_review_for_coding_workspace,
+            commands::reviews::update_review_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
