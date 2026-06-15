@@ -28,15 +28,20 @@ pub struct GitInspection {
 /// Run a read-only `git -C <repo> <args...>` command and return trimmed stdout.
 /// Only ever used for inspection — never for writes or running repo scripts.
 ///
-/// `-c core.fsmonitor=` overrides any `core.fsmonitor` set in the target repo's
-/// `.git/config`. `git status` treats that setting as a hook command and would
-/// otherwise execute it — so an attached (e.g. cloned) repo could run arbitrary
-/// code during inspection. Args are passed as argv (never through a shell), so
-/// there is no injection from the path or branch names.
+/// An attached (e.g. cloned/third-party) repo is treated as untrusted, so we
+/// neutralize config-driven code-execution vectors on every call:
+/// - `core.fsmonitor=` — `git status` would otherwise run it as a hook command;
+/// - `core.hooksPath=/dev/null` — disables repo hooks (e.g. `post-checkout` runs
+///   during `worktree add`).
+/// (`git diff` callers additionally pass `--no-ext-diff --no-textconv`.)
+/// Args are passed as argv (never a shell), so there is no injection from paths
+/// or branch names.
 fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
     let output = Command::new("git")
         .arg("-c")
         .arg("core.fsmonitor=")
+        .arg("-c")
+        .arg("core.hooksPath=/dev/null")
         .arg("-C")
         .arg(repo)
         .args(args)
@@ -120,6 +125,89 @@ pub fn inspect(repo: &Path) -> GitInspection {
             error: Some(e),
             ..Default::default()
         },
+    }
+}
+
+/// The working-tree changes inside a coding worktree, for review.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct WorktreeDiff {
+    /// `git status --porcelain` lines (status code + path), incl. untracked.
+    pub changed_files: Vec<String>,
+    /// `git diff --stat HEAD` summary.
+    pub diff_stat: String,
+    /// Full unified `git diff HEAD` patch (tracked changes).
+    pub diff_text: String,
+    /// True when there are no working-tree changes.
+    pub is_clean: bool,
+    /// Set when the worktree could not be inspected (e.g. its path is gone).
+    pub error: Option<String>,
+}
+
+/// Create an isolated worktree on a new branch: `git worktree add -b <branch>
+/// <worktree_path> <base>`. The branch is created off `base`.
+pub fn create_worktree(
+    repo: &Path,
+    worktree_path: &Path,
+    branch: &str,
+    base: &str,
+) -> Result<(), String> {
+    let wt = worktree_path.to_string_lossy();
+    run_git(repo, &["worktree", "add", "-b", branch, &wt, base]).map(|_| ())
+}
+
+/// Remove a worktree: `git worktree remove [--force] <worktree_path>`. The branch
+/// is left intact (so the work is recoverable); only the working tree is removed.
+pub fn remove_worktree(repo: &Path, worktree_path: &Path, force: bool) -> Result<(), String> {
+    let wt = worktree_path.to_string_lossy().to_string();
+    let mut args: Vec<&str> = vec!["worktree", "remove"];
+    if force {
+        args.push("--force");
+    }
+    args.push(&wt);
+    run_git(repo, &args).map(|_| ())
+}
+
+/// Collect the working-tree changes in a worktree (relative to its HEAD).
+///
+/// `changed_files` (from `status --porcelain`) lists every change incl. untracked
+/// files, which `git diff HEAD` does not show — so the UI renders this list. The
+/// diff invocations pass `--no-ext-diff --no-textconv` to prevent the repo's
+/// config-driven diff drivers from executing arbitrary commands.
+pub fn worktree_diff(worktree: &Path) -> WorktreeDiff {
+    // If status itself fails the worktree is gone/broken — report it rather than
+    // silently looking clean.
+    let status = match run_git(worktree, &["status", "--porcelain"]) {
+        Ok(s) => s,
+        Err(e) => {
+            return WorktreeDiff {
+                is_clean: false,
+                error: Some(e),
+                ..Default::default()
+            };
+        }
+    };
+    let changed_files: Vec<String> = status
+        .lines()
+        .map(|l| l.trim_end().to_string())
+        .filter(|l| !l.is_empty())
+        .collect();
+    let diff_stat = run_git(
+        worktree,
+        &["diff", "--no-ext-diff", "--no-textconv", "--stat", "HEAD"],
+    )
+    .unwrap_or_default();
+    let diff_text = run_git(
+        worktree,
+        &["diff", "--no-ext-diff", "--no-textconv", "HEAD"],
+    )
+    .unwrap_or_default();
+    let is_clean = changed_files.is_empty();
+    WorktreeDiff {
+        changed_files,
+        diff_stat,
+        diff_text,
+        is_clean,
+        error: None,
     }
 }
 
@@ -223,6 +311,49 @@ mod tests {
         assert_eq!(info.current_branch, None);
         // default_branch still resolves to the local main, never "HEAD".
         assert_eq!(info.default_branch.as_deref(), Some("main"));
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn worktree_create_diff_and_remove_lifecycle() {
+        let repo = temp_repo();
+        let wt = std::env::temp_dir().join(format!("uaw-wt-{}", crate::util::new_id()));
+
+        create_worktree(&repo, &wt, "feature/x", "main").unwrap();
+        assert!(wt.exists(), "worktree directory should be created");
+        assert_eq!(current_branch(&wt).as_deref(), Some("feature/x"));
+
+        // A fresh worktree off main is clean.
+        let clean = worktree_diff(&wt);
+        assert!(clean.is_clean);
+        assert!(clean.changed_files.is_empty());
+
+        // Editing a file makes it dirty and shows up in the diff.
+        fs::write(wt.join("README.md"), "# changed in worktree\n").unwrap();
+        let dirty = worktree_diff(&wt);
+        assert!(!dirty.is_clean);
+        assert!(dirty.changed_files.iter().any(|f| f.contains("README.md")));
+        assert!(dirty.diff_text.contains("changed in worktree"));
+        assert!(dirty.error.is_none());
+
+        // Untracked files don't show in `git diff HEAD` but must still be listed
+        // in changed_files so review never silently drops new files.
+        fs::write(wt.join("brand_new.txt"), "hello\n").unwrap();
+        let with_untracked = worktree_diff(&wt);
+        assert!(!with_untracked.is_clean);
+        assert!(with_untracked
+            .changed_files
+            .iter()
+            .any(|f| f.contains("brand_new.txt")));
+
+        // Removing a dirty worktree requires force; the branch survives.
+        assert!(remove_worktree(&repo, &wt, false).is_err());
+        remove_worktree(&repo, &wt, true).unwrap();
+        assert!(!wt.exists());
+        assert!(list_branches(&repo)
+            .unwrap()
+            .contains(&"feature/x".to_string()));
+
         fs::remove_dir_all(&repo).ok();
     }
 

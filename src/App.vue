@@ -4,11 +4,13 @@ import { useWorkspacesStore } from "./stores/workspaces";
 import { useProjectsStore } from "./stores/projects";
 import { useSessionsStore } from "./stores/sessions";
 import { useRepositoriesStore } from "./stores/repositories";
+import { useCodingWorkspacesStore } from "./stores/codingWorkspaces";
 import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
 import ProjectsView from "./components/ProjectsView.vue";
 import SourcesView from "./components/SourcesView.vue";
+import CodingView from "./components/CodingView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 
@@ -16,8 +18,9 @@ const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const sessions = useSessionsStore();
 const repositories = useRepositoriesStore();
+const coding = useCodingWorkspacesStore();
 
-type ActiveView = "inbox" | "projects" | "sources";
+type ActiveView = "inbox" | "projects" | "sources" | "coding";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
@@ -39,6 +42,7 @@ watch(
       projects.load(workspaceId);
       sessions.load(workspaceId);
       repositories.load(workspaceId);
+      coding.load(workspaceId);
       sessions.setFilter(null);
     }
   },
@@ -99,6 +103,16 @@ watch(
         </button>
 
         <button
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'coding' ? 'page' : undefined"
+          type="button"
+          @click="activeView = 'coding'"
+        >
+          Coding
+        </button>
+
+        <button
           v-for="section in plannedSections"
           :key="section"
           class="re-button"
@@ -126,6 +140,7 @@ watch(
         <SessionsView v-if="activeView === 'inbox'" />
         <ProjectsView v-else-if="activeView === 'projects'" />
         <SourcesView v-else-if="activeView === 'sources'" />
+        <CodingView v-else-if="activeView === 'coding'" />
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>

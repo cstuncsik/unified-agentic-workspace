@@ -2,7 +2,7 @@
 import { ref, watch } from "vue";
 import { useConfirm } from "../composables/useConfirm";
 
-const { open, title, message, settle } = useConfirm();
+const { open, title, message, confirmLabel, settle } = useConfirm();
 const dialog = ref<HTMLDialogElement | null>(null);
 
 watch(open, (isOpen) => {
@@ -31,7 +31,7 @@ function onClose() {
         Cancel
       </button>
       <button type="button" class="re-button" data-variant="danger" @click="settle(true)">
-        Delete
+        {{ confirmLabel }}
       </button>
     </div>
   </dialog>
