@@ -4,6 +4,7 @@ import { useWorkspacesStore } from "../stores/workspaces";
 import { useProjectsStore } from "../stores/projects";
 import { useRepositoriesStore } from "../stores/repositories";
 import { useCodingWorkspacesStore } from "../stores/codingWorkspaces";
+import { useReviewsStore } from "../stores/reviews";
 import { useToast } from "../composables/useToast";
 import { useConfirm } from "../composables/useConfirm";
 import { listRepositoryBranches } from "../api/repositories";
@@ -12,6 +13,7 @@ const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const repositories = useRepositoriesStore();
 const coding = useCodingWorkspacesStore();
+const reviews = useReviewsStore();
 const toast = useToast();
 const { confirm } = useConfirm();
 
@@ -130,6 +132,15 @@ async function markReady(id: string) {
   }
 }
 
+async function createReview(id: string) {
+  try {
+    await reviews.createForCodingWorkspace(id);
+    toast.success("Review created — see Reviews");
+  } catch (e) {
+    toast.error(String(e));
+  }
+}
+
 async function discardWorktree(id: string, branch: string) {
   // Refresh the diff so the confirmation can warn about uncommitted work.
   await coding.refreshDiff(id);
@@ -233,6 +244,15 @@ async function discardWorktree(id: string, branch: string) {
               @click="markReady(cw.id)"
             >
               Mark ready
+            </button>
+            <button
+              type="button"
+              class="re-button"
+              data-variant="secondary"
+              data-size="sm"
+              @click="createReview(cw.id)"
+            >
+              Create review
             </button>
             <button
               type="button"
