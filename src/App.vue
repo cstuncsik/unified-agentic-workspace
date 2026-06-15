@@ -5,12 +5,14 @@ import { useProjectsStore } from "./stores/projects";
 import { useSessionsStore } from "./stores/sessions";
 import { useRepositoriesStore } from "./stores/repositories";
 import { useCodingWorkspacesStore } from "./stores/codingWorkspaces";
+import { useReviewsStore } from "./stores/reviews";
 import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
 import ProjectsView from "./components/ProjectsView.vue";
 import SourcesView from "./components/SourcesView.vue";
 import CodingView from "./components/CodingView.vue";
+import ReviewsView from "./components/ReviewsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 
@@ -19,12 +21,13 @@ const projects = useProjectsStore();
 const sessions = useSessionsStore();
 const repositories = useRepositoriesStore();
 const coding = useCodingWorkspacesStore();
+const reviews = useReviewsStore();
 
-type ActiveView = "inbox" | "projects" | "sources" | "coding";
+type ActiveView = "inbox" | "projects" | "sources" | "coding" | "reviews";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
-const plannedSections = ["Skills", "Automations", "Reviews", "Settings"];
+const plannedSections = ["Skills", "Automations", "Settings"];
 
 function openInbox(filterKey: string | null) {
   activeView.value = "inbox";
@@ -43,6 +46,7 @@ watch(
       sessions.load(workspaceId);
       repositories.load(workspaceId);
       coding.load(workspaceId);
+      reviews.load(workspaceId);
       sessions.setFilter(null);
     }
   },
@@ -113,6 +117,16 @@ watch(
         </button>
 
         <button
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'reviews' ? 'page' : undefined"
+          type="button"
+          @click="activeView = 'reviews'"
+        >
+          Reviews
+        </button>
+
+        <button
           v-for="section in plannedSections"
           :key="section"
           class="re-button"
@@ -141,6 +155,7 @@ watch(
         <ProjectsView v-else-if="activeView === 'projects'" />
         <SourcesView v-else-if="activeView === 'sources'" />
         <CodingView v-else-if="activeView === 'coding'" />
+        <ReviewsView v-else-if="activeView === 'reviews'" />
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>
