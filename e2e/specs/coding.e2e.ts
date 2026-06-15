@@ -99,8 +99,10 @@ describe("coding workspaces", () => {
     );
     expect(await textOf('[data-testid="review-detail"]')).toContain("untracked.txt");
 
-    // Approve it; the status badge updates.
-    await (await $('[data-testid="review-detail"] button*=Approve')).click();
+    // Approve it; the status badge updates. Scope the button lookup to the detail
+    // element — a combined `[attr] button*=Text` string isn't a valid wdio selector.
+    const detail = await $('[data-testid="review-detail"]');
+    await detail.$("button*=Approve").click();
     await browser.waitUntil(
       async () => (await textOf('[data-testid="review-row"] .re-badge')).includes("approved"),
       { timeout: 10_000, timeoutMsg: "expected the review status to become approved" },
