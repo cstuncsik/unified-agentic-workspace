@@ -29,8 +29,14 @@ function badgeVariant(status: string): string | undefined {
 
 async function setStatus(id: string, status: string) {
   try {
-    await reviews.updateStatus(id, status);
-    toast.success(`Review ${status}`);
+    // A null result means the review no longer exists — don't claim success for
+    // a no-op (e.g. it was discarded with its worktree in another view).
+    const updated = await reviews.updateStatus(id, status);
+    if (updated) {
+      toast.success(`Review ${status}`);
+    } else {
+      toast.error("Review no longer exists");
+    }
   } catch (e) {
     toast.error(String(e));
   }
