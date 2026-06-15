@@ -1,0 +1,22 @@
+src/components/CodingView.vue
+  s_b49f7388e23022::t_fe1c310185c533 7
+  s_b49f7388e23022::t_93de54e9cd578f 251-256
+  s_b49f7388e23022::t_833fd55ce1677a 135-143
+  s_b49f7388e23022::t_f2782bd0ea5273 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "645168d273d0c8a1711d8054634679614d52e0e4",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
