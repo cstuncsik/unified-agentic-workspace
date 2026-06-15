@@ -1,0 +1,39 @@
+src/components/ProjectsView.vue
+  s_b49f7388e23022::t_1db5382ffd1b99 229
+pnpm-workspace.yaml
+  s_b49f7388e23022::t_99400d4e89acc9 12
+  s_b49f7388e23022::t_d7be8cba58102c 13
+pnpm-lock.yaml
+  s_b49f7388e23022::t_6314f3c4110ee0 12-13,594-595,2878
+src/components/ReviewsView.vue
+  s_b49f7388e23022::t_debee7a12fde37 67
+  s_b49f7388e23022::t_1db5382ffd1b99 210,235
+  s_b49f7388e23022::t_36d30301ce1f07 74
+src/components/SourcesView.vue
+  s_b49f7388e23022::t_1db5382ffd1b99 204,266
+src/components/SessionsView.vue
+  s_b49f7388e23022::t_1db5382ffd1b99 260
+package.json
+  s_b49f7388e23022::t_31b60665e2d120 21
+src/components/CodingView.vue
+  s_b49f7388e23022::t_1db5382ffd1b99 415
+  s_b49f7388e23022::t_19dbaafd753a4c 225
+src/App.vue
+  s_b49f7388e23022::t_1db5382ffd1b99 308
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "227666d67ae3ef291bc33a7181f95f4212994c84",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
