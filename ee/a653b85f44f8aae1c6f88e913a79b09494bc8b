@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-15-reviews.md
+  s_b49f7388e23022::t_273b4cc0739c07 1-1553
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "eea653b85f44f8aae1c6f88e913a79b09494bc8b",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
