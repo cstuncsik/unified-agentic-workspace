@@ -1,0 +1,23 @@
+src/stores/reviews.ts
+  s_b49f7388e23022::t_e23aed00a558d9 1-52
+src/api/reviews.ts
+  s_b49f7388e23022::t_f41a2de3c78698 1-18
+src/types/review.ts
+  s_b49f7388e23022::t_97dfed2edf0e8c 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "35b1557a94976c59f7f675c14216e8173623604c",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
