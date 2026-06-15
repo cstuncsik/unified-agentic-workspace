@@ -71,6 +71,23 @@ watch(
   },
 );
 
+// Default the project/repository selects to the first available option once the
+// lists load, so a workspace with a single project/repo is immediately ready to
+// create a worktree (rather than leaving the Create button silently disabled
+// because the project select is still on its placeholder).
+watch(
+  [codeProjects, () => repositories.list.length],
+  () => {
+    if (newProjectId.value === "" && codeProjects.value.length > 0) {
+      newProjectId.value = codeProjects.value[0].id;
+    }
+    if (newRepoId.value === "" && repositories.list.length > 0) {
+      newRepoId.value = repositories.list[0].id;
+    }
+  },
+  { immediate: true },
+);
+
 async function createWorktree() {
   if (!canCreate.value) return;
   submitting.value = true;
