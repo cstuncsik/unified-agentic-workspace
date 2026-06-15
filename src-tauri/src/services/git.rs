@@ -30,10 +30,12 @@ pub struct GitInspection {
 ///
 /// An attached (e.g. cloned/third-party) repo is treated as untrusted, so we
 /// neutralize config-driven code-execution vectors on every call:
+///
 /// - `core.fsmonitor=` — `git status` would otherwise run it as a hook command;
 /// - `core.hooksPath=/dev/null` — disables repo hooks (e.g. `post-checkout` runs
 ///   during `worktree add`).
-/// (`git diff` callers additionally pass `--no-ext-diff --no-textconv`.)
+///
+/// `git diff` callers additionally pass `--no-ext-diff --no-textconv`.
 /// Args are passed as argv (never a shell), so there is no injection from paths
 /// or branch names.
 fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
@@ -143,6 +145,33 @@ pub struct WorktreeDiff {
     pub error: Option<String>,
 }
 
+/// A deterministic snapshot of a worktree's changes for a review record. Unlike
+/// `WorktreeDiff` (which carries the full patch for display), this carries the
+/// aggregates the review summary and risk heuristics need: the changed-file set
+/// (tracked + untracked), which paths were deleted, total line counts, and
+/// whether any change was binary.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct ReviewSnapshot {
+    /// Raw `git status --short` text.
+    pub status_short: String,
+    /// `git diff --stat HEAD` summary.
+    pub diff_stat: String,
+    /// Every changed path (tracked changes + untracked files), de-duplicated.
+    pub files: Vec<String>,
+    /// Paths reported deleted by status (porcelain `D` code).
+    pub deleted: Vec<String>,
+    /// Total added lines across tracked changes (numstat).
+    pub added_lines: u32,
+    /// Total deleted lines across tracked changes (numstat).
+    pub deleted_lines: u32,
+    /// True if any tracked change was binary (numstat reports `-`).
+    pub has_binary: bool,
+    /// True when there are no working-tree changes.
+    pub is_clean: bool,
+    /// Set when the worktree could not be inspected (e.g. its path is gone).
+    pub error: Option<String>,
+}
+
 /// Create an isolated worktree on a new branch: `git worktree add -b <branch>
 /// <worktree_path> <base>`. The branch is created off `base`.
 pub fn create_worktree(
@@ -206,6 +235,110 @@ pub fn worktree_diff(worktree: &Path) -> WorktreeDiff {
         changed_files,
         diff_stat,
         diff_text,
+        is_clean,
+        error: None,
+    }
+}
+
+/// Parse a `git status --short` path field. Lines are `XY <path>`; a rename is
+/// `R  <old> -> <new>` — we take the new path. Returns `None` for blank lines.
+///
+/// `run_git` trims the entire output, so the leading space of the very first
+/// status line (e.g. `" M file"`) can be stripped to `"M file"`. We detect both
+/// the normal 3-char prefix (`XY<space>`) and the trimmed 2-char prefix
+/// (`X<space>`) so path extraction is correct in either case.
+fn porcelain_path(line: &str) -> Option<String> {
+    if line.is_empty() {
+        return None;
+    }
+    // Normal format: "XY PATH" — status is exactly 2 chars, separator at pos 2,
+    // path at pos 3+. Trimmed first-line format: "X PATH" — separator at pos 1,
+    // path at pos 2+ (leading status char was stripped by run_git's trim()).
+    let path = if line.len() > 2 && line.as_bytes()[2] == b' ' {
+        line[3..].trim_start()
+    } else if line.len() > 1 && line.as_bytes()[1] == b' ' {
+        line[2..].trim_start()
+    } else {
+        return None;
+    };
+    if path.is_empty() {
+        return None;
+    }
+    let path = path.rsplit(" -> ").next().unwrap_or(path);
+    Some(path.trim().to_string())
+}
+
+/// Collect a review snapshot for a worktree (relative to its HEAD). Mirrors
+/// `worktree_diff`'s safety: a failing `status` returns an error rather than
+/// silently looking clean, and every diff passes `--no-ext-diff --no-textconv`.
+pub fn review_snapshot(worktree: &Path) -> ReviewSnapshot {
+    let status_short = match run_git(worktree, &["status", "--short"]) {
+        Ok(s) => s,
+        Err(e) => {
+            return ReviewSnapshot {
+                is_clean: false,
+                error: Some(e),
+                ..Default::default()
+            };
+        }
+    };
+
+    let mut files: Vec<String> = Vec::new();
+    let mut deleted: Vec<String> = Vec::new();
+    for line in status_short.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        if let Some(path) = porcelain_path(line) {
+            if !files.contains(&path) {
+                files.push(path.clone());
+            }
+            // Porcelain status codes occupy the first two columns; a 'D' in
+            // either means the path was deleted (staged or unstaged).
+            let code = &line[..2.min(line.len())];
+            if code.contains('D') {
+                deleted.push(path);
+            }
+        }
+    }
+
+    let diff_stat = run_git(
+        worktree,
+        &["diff", "--no-ext-diff", "--no-textconv", "--stat", "HEAD"],
+    )
+    .unwrap_or_default();
+
+    let numstat = run_git(
+        worktree,
+        &["diff", "--no-ext-diff", "--no-textconv", "--numstat", "HEAD"],
+    )
+    .unwrap_or_default();
+
+    let mut added_lines: u32 = 0;
+    let mut deleted_lines: u32 = 0;
+    let mut has_binary = false;
+    for line in numstat.lines() {
+        let mut cols = line.split('\t');
+        let added = cols.next().unwrap_or("");
+        let removed = cols.next().unwrap_or("");
+        // Binary files report "-\t-\t<path>".
+        if added == "-" || removed == "-" {
+            has_binary = true;
+            continue;
+        }
+        added_lines += added.parse::<u32>().unwrap_or(0);
+        deleted_lines += removed.parse::<u32>().unwrap_or(0);
+    }
+
+    let is_clean = files.is_empty();
+    ReviewSnapshot {
+        status_short,
+        diff_stat,
+        files,
+        deleted,
+        added_lines,
+        deleted_lines,
+        has_binary,
         is_clean,
         error: None,
     }
@@ -354,6 +487,40 @@ mod tests {
             .unwrap()
             .contains(&"feature/x".to_string()));
 
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn review_snapshot_reports_files_deletions_and_line_counts() {
+        let repo = temp_repo();
+        let wt = std::env::temp_dir().join(format!("uaw-rs-{}", crate::util::new_id()));
+        create_worktree(&repo, &wt, "feature/review", "main").unwrap();
+
+        // A fresh worktree off main is clean.
+        let clean = review_snapshot(&wt);
+        assert!(clean.is_clean);
+        assert!(clean.files.is_empty());
+        assert!(clean.error.is_none());
+
+        // Edit a tracked file (adds lines), add an untracked file, delete the
+        // committed README.
+        fs::write(wt.join("README.md"), "# changed\nmore\n").unwrap();
+        let snap_edit = review_snapshot(&wt);
+        assert!(!snap_edit.is_clean);
+        assert!(snap_edit.files.iter().any(|f| f.contains("README.md")));
+        assert!(snap_edit.added_lines > 0);
+
+        fs::write(wt.join("new.txt"), "hello\n").unwrap();
+        fs::remove_file(wt.join("README.md")).unwrap();
+        let snap = review_snapshot(&wt);
+        assert!(snap.files.iter().any(|f| f.contains("new.txt")));
+        assert!(
+            snap.deleted.iter().any(|f| f.contains("README.md")),
+            "deleted README should be reported in `deleted`, got {:?}",
+            snap.deleted
+        );
+
+        remove_worktree(&repo, &wt, true).unwrap();
         fs::remove_dir_all(&repo).ok();
     }
 
