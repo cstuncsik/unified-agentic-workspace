@@ -226,6 +226,6 @@ async function removeProject(id: string, name: string) {
 }
 
 .error {
-  color: var(--re-color-text-danger);
+  color: var(--re-color-danger-text);
 }
 </style>

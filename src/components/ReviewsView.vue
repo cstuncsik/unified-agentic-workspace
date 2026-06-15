@@ -64,14 +64,14 @@ async function setStatus(id: string, status: string) {
           @click="selectedId = r.id"
         >
           <span class="review__summary">{{ r.summary }}</span>
-          <span class="re-badge" :data-variant="badgeVariant(r.status)">{{ r.status }}</span>
+          <span class="re-badge" :data-tone="badgeVariant(r.status)">{{ r.status }}</span>
         </li>
       </ul>
 
       <div v-if="selected" class="detail re-card" data-testid="review-detail">
         <header class="detail__head">
           <span class="detail__summary">{{ selected.summary }}</span>
-          <span class="re-badge" :data-variant="badgeVariant(selected.status)">
+          <span class="re-badge" :data-tone="badgeVariant(selected.status)">
             {{ selected.status }}
           </span>
         </header>
@@ -207,7 +207,7 @@ async function setStatus(id: string, status: string) {
 }
 
 .detail__risk li {
-  color: var(--re-color-text-danger);
+  color: var(--re-color-danger-text);
 }
 
 .detail__files {
@@ -232,6 +232,6 @@ async function setStatus(id: string, status: string) {
 }
 
 .error {
-  color: var(--re-color-text-danger);
+  color: var(--re-color-danger-text);
 }
 </style>

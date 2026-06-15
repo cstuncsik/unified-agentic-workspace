@@ -201,7 +201,7 @@ function statusLabel(status: GitInspection | undefined): string {
 }
 
 .preview--bad {
-  color: var(--re-color-text-danger);
+  color: var(--re-color-danger-text);
 }
 
 .rows {
@@ -263,6 +263,6 @@ function statusLabel(status: GitInspection | undefined): string {
 }
 
 .error {
-  color: var(--re-color-text-danger);
+  color: var(--re-color-danger-text);
 }
 </style>

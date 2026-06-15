@@ -222,7 +222,7 @@ async function discardWorktree(id: string, branch: string) {
             </span>
             <span class="coding__path">{{ cw.worktree_path }}</span>
           </span>
-          <span class="re-badge" :data-variant="cw.status === 'needs-review' ? 'info' : undefined">
+          <span class="re-badge" :data-tone="cw.status === 'needs-review' ? 'info' : undefined">
             {{ cw.status }}
           </span>
           <span class="coding__actions">
@@ -412,6 +412,6 @@ async function discardWorktree(id: string, branch: string) {
 }
 
 .error {
-  color: var(--re-color-text-danger);
+  color: var(--re-color-danger-text);
 }
 </style>
