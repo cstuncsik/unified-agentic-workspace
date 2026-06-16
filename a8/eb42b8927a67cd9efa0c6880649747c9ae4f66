@@ -1,0 +1,20 @@
+docs/superpowers/specs/2026-06-16-automation-design.md
+  s_b49f7388e23022::t_e4b8e80d799ffb 1-138,142-195
+  s_b49f7388e23022::t_fad1a0719be70a 139-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "a8eb42b8927a67cd9efa0c6880649747c9ae4f66",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
