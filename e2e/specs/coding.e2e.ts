@@ -75,6 +75,44 @@ describe("coding workspaces", () => {
     });
   });
 
+  it("creates a review for the worktree and approves it", async () => {
+    const row = await $('[data-testid="coding-row"]');
+
+    // Delete the committed README in the worktree so the review has a deterministic
+    // risk flag ("Files deleted") to assert on (the worktree already has an
+    // untracked file from the previous test).
+    const worktreePath = (await textOf('[data-testid="coding-row"] .coding__path')).trim();
+    fs.rmSync(path.join(worktreePath, "README.md"));
+
+    await row.$("button*=Create review").click();
+
+    // Go to the Reviews view; a pending review should be listed.
+    await (await $("button*=Reviews")).click();
+    const reviewRow = await $('[data-testid="review-row"]');
+    await reviewRow.waitForExist({ timeout: 10_000 });
+    await reviewRow.click();
+
+    // The detail panel shows the deleted-file risk flag and the untracked file.
+    await browser.waitUntil(
+      async () => (await textOf('[data-testid="review-detail"]')).includes("Files deleted"),
+      { timeout: 10_000, timeoutMsg: "expected a 'Files deleted' risk note" },
+    );
+    expect(await textOf('[data-testid="review-detail"]')).toContain("untracked.txt");
+
+    // Approve it; the status badge updates. Scope the button lookup to the detail
+    // element — a combined `[attr] button*=Text` string isn't a valid wdio selector.
+    const detail = await $('[data-testid="review-detail"]');
+    await detail.$("button*=Approve").click();
+    await browser.waitUntil(
+      async () => (await textOf('[data-testid="review-row"] .re-badge')).includes("approved"),
+      { timeout: 10_000, timeoutMsg: "expected the review status to become approved" },
+    );
+
+    // Return to Coding for the discard test that follows.
+    await (await $("button*=Coding")).click();
+    await (await $('[data-testid="coding-row"]')).waitForExist({ timeout: 10_000 });
+  });
+
   it("marks ready, then discards the dirty worktree", async () => {
     const row = await $('[data-testid="coding-row"]');
 

@@ -9,3 +9,5 @@ allowBuilds:
   esbuild: true
   geckodriver: false
   vue-demi: true
+minimumReleaseAgeExclude:
+  - "@relements/core@1.0.0"
