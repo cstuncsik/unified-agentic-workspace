@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useWorkspacesStore } from "../stores/workspaces";
 import { useProjectsStore } from "../stores/projects";
 import { useSessionsStore } from "../stores/sessions";
-import { PROJECT_MODES, type ProjectMode } from "../types/project";
+import { PROJECT_MODES, type Project, type ProjectMode } from "../types/project";
 import { useToast } from "../composables/useToast";
 import { useConfirm } from "../composables/useConfirm";
 
@@ -53,6 +53,24 @@ async function saveRename() {
     await projects.rename(id, name);
     cancelRename();
     toast.success("Project renamed");
+  } catch (e) {
+    toast.error(String(e));
+  }
+}
+
+function testCommandOf(project: Project): string {
+  try {
+    return (JSON.parse(project.settings_json)?.test_command as string) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+async function saveTestCommand(id: string, event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  try {
+    await projects.setTestCommand(id, value);
+    toast.success("Test command saved");
   } catch (e) {
     toast.error(String(e));
   }
@@ -167,6 +185,16 @@ async function removeProject(id: string, name: string) {
               Delete
             </button>
           </span>
+          <input
+            class="re-input project__cmd"
+            data-size="sm"
+            type="text"
+            placeholder="Test command (optional)"
+            :aria-label="`Test command for ${project.name}`"
+            :value="testCommandOf(project)"
+            @change="saveTestCommand(project.id, $event)"
+            @keyup.enter="saveTestCommand(project.id, $event)"
+          />
         </template>
       </li>
     </ul>
@@ -198,9 +226,15 @@ async function removeProject(id: string, name: string) {
   display: flex;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.6rem;
   /* Bare .re-card has no padding (it lives in .re-card__body, unused here). */
   padding: 0.6rem 0.85rem;
+}
+
+.project__cmd {
+  flex: 1 1 100%;
+  font-family: ui-monospace, monospace;
 }
 
 .row__title {
