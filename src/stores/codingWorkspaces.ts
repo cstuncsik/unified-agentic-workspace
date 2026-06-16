@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import type { CodingWorkspace, WorktreeDiff } from "../types/codingWorkspace";
+import type { Review } from "../types/review";
 import type { CreateCodingWorkspaceInput } from "../api/codingWorkspaces";
 import * as api from "../api/codingWorkspaces";
 
@@ -75,5 +76,13 @@ export const useCodingWorkspacesStore = defineStore("codingWorkspaces", () => {
     diffs.value = next;
   }
 
-  return { list, loading, error, diffs, load, create, refreshDiff, markReady, discard };
+  async function complete(id: string): Promise<Review> {
+    const review = await api.completeCodingWorkspace(id);
+    // Completion deterministically moves the workspace to needs-review.
+    const i = list.value.findIndex((c) => c.id === id);
+    if (i >= 0) list.value[i] = { ...list.value[i], status: "needs-review" };
+    return review;
+  }
+
+  return { list, loading, error, diffs, load, create, refreshDiff, markReady, discard, complete };
 });

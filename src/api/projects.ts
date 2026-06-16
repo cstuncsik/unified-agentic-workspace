@@ -28,3 +28,10 @@ export function updateProject(
 export function deleteProject(id: string): Promise<boolean> {
   return invoke<boolean>("delete_project", { id });
 }
+
+export function setProjectTestCommand(
+  id: string,
+  testCommand: string | null,
+): Promise<Project | null> {
+  return invoke<Project | null>("set_project_test_command", { id, testCommand });
+}
