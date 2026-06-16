@@ -92,6 +92,7 @@ pub fn create_review_for_coding_workspace(
         &snapshot.diff_stat,
         &snapshot.files,
         test_command.as_deref(),
+        "",
         &risk_notes,
     )
     .map_err(|e| e.to_string())
