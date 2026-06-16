@@ -1,0 +1,29 @@
+src/stores/reviews.ts
+  s_b49f7388e23022::t_d07cdd1bfddd72 51-57
+src/api/projects.ts
+  s_b49f7388e23022::t_4925800c421147 31-37
+src/stores/projects.ts
+  s_b49f7388e23022::t_82485aada8e6f6 47-56,62
+src/stores/codingWorkspaces.ts
+  s_b49f7388e23022::t_c4c39e68fcbe53 79-87
+  s_b49f7388e23022::t_0e2646f9a7e47f 4
+src/api/codingWorkspaces.ts
+  s_b49f7388e23022::t_f83a102cb33c5f 3
+  s_b49f7388e23022::t_8f9dee75931eae 35-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "8f03f6f4cdb0269cda8ea471d1ef6f6774bd1c6e",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
