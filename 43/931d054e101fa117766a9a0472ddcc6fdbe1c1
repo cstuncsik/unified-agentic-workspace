@@ -1,0 +1,21 @@
+src-tauri/src/db/mod.rs
+  s_b49f7388e23022::t_c4eed09cd05004 35-39
+src-tauri/src/db/migrations/0006_events.sql
+  s_b49f7388e23022::t_35d845ff95fcfe 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "43931d054e101fa117766a9a0472ddcc6fdbe1c1",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
