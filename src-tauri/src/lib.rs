@@ -43,6 +43,7 @@ pub fn run() {
             commands::projects::create_project,
             commands::projects::update_project,
             commands::projects::delete_project,
+            commands::projects::set_project_test_command,
             commands::sessions::list_sessions,
             commands::sessions::get_session,
             commands::sessions::create_session,
