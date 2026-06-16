@@ -50,14 +50,6 @@ pub fn get(conn: &Connection, id: &str) -> rusqlite::Result<Option<Event>> {
     }
 }
 
-pub fn list_by_workspace(conn: &Connection, workspace_id: &str) -> rusqlite::Result<Vec<Event>> {
-    let sql =
-        format!("SELECT {COLUMNS} FROM events WHERE workspace_id = ?1 ORDER BY created_at DESC");
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![workspace_id], from_row)?;
-    rows.collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn create_then_get_and_list() {
+    fn create_then_get() {
         let conn = migrated_conn();
         let ws = workspace::create(&conn, "Test", "mixed").unwrap().id;
         let e = create(
@@ -87,7 +79,6 @@ mod tests {
         assert_eq!(e.workspace_id, ws);
         assert_eq!(e.r#type, "coding_workspace.completed");
         assert!(e.payload_json.contains("checks_passed"));
-        assert_eq!(list_by_workspace(&conn, &ws).unwrap().len(), 1);
         assert!(get(&conn, &e.id).unwrap().is_some());
     }
 
