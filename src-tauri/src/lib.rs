@@ -30,6 +30,7 @@ pub fn run() {
             }
             let conn = db::init_db(&db_path).expect("failed to initialize database");
             app.manage(Mutex::new(conn));
+            app.manage(commands::agent_sessions::AgentProcesses::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -68,6 +69,14 @@ pub fn run() {
             commands::reviews::get_review,
             commands::reviews::create_review_for_coding_workspace,
             commands::reviews::update_review_status,
+            commands::agent_sessions::list_agent_adapters,
+            commands::agent_sessions::list_agent_sessions,
+            commands::agent_sessions::get_agent_session,
+            commands::agent_sessions::get_agent_session_transcript,
+            commands::agent_sessions::start_agent_session,
+            commands::agent_sessions::write_agent_session,
+            commands::agent_sessions::resize_agent_session,
+            commands::agent_sessions::stop_agent_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

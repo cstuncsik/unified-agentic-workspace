@@ -1,7 +1,7 @@
 //! Agent CLI adapters: descriptors of the interactive coding CLIs UAW can launch
-//! in a PTY. The runtime is identical for each; an adapter just names the program
-//! + base args + capabilities. The program is overridable via `UAW_AGENT_BIN`
-//! (used by tests to inject a fake interactive program).
+//! in a PTY. The runtime is identical for each; an adapter just names the program,
+//! its base args, and its capabilities. The program is overridable via
+//! `UAW_AGENT_BIN` (used by tests to inject a fake interactive program).
 
 pub mod pty;
 
