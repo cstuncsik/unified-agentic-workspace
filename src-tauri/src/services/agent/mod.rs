@@ -3,6 +3,8 @@
 //! + base args + capabilities. The program is overridable via `UAW_AGENT_BIN`
 //! (used by tests to inject a fake interactive program).
 
+pub mod pty;
+
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
