@@ -84,6 +84,55 @@ pub fn update(
     }
 }
 
+/// Persist a project's raw `settings_json`.
+pub fn update_settings_json(
+    conn: &Connection,
+    id: &str,
+    settings_json: &str,
+) -> rusqlite::Result<Option<Project>> {
+    let now = now_rfc3339();
+    let affected = conn.execute(
+        "UPDATE projects SET settings_json = ?2, updated_at = ?3 WHERE id = ?1",
+        params![id, settings_json, now],
+    )?;
+    if affected == 0 {
+        Ok(None)
+    } else {
+        get(conn, id)
+    }
+}
+
+/// Read the optional `test_command` from a project's `settings_json`. Blank or
+/// whitespace-only values are treated as absent.
+pub fn test_command_from_settings(settings_json: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(settings_json)
+        .ok()
+        .and_then(|v| {
+            v.get("test_command")
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string())
+        })
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Return a new `settings_json` with `test_command` set (or removed when `None`
+/// or blank), preserving any other keys. Malformed input is replaced by a fresh
+/// object.
+pub fn merge_test_command(settings_json: &str, test_command: Option<&str>) -> String {
+    let mut obj = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(settings_json)
+        .unwrap_or_default();
+    match test_command.map(|c| c.trim()).filter(|c| !c.is_empty()) {
+        Some(cmd) => {
+            obj.insert("test_command".into(), serde_json::Value::String(cmd.to_string()));
+        }
+        None => {
+            obj.remove("test_command");
+        }
+    }
+    serde_json::to_string(&serde_json::Value::Object(obj)).unwrap_or_else(|_| "{}".to_string())
+}
+
 pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<bool> {
     let affected = conn.execute("DELETE FROM projects WHERE id = ?1", params![id])?;
     Ok(affected > 0)
@@ -169,5 +218,38 @@ mod tests {
 
         workspace::delete(&conn, &ws).unwrap();
         assert!(get(&conn, &project.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_command_round_trips_through_settings() {
+        assert_eq!(test_command_from_settings("{}"), None);
+        assert_eq!(
+            test_command_from_settings(r#"{"test_command":"pnpm test"}"#).as_deref(),
+            Some("pnpm test")
+        );
+        assert_eq!(test_command_from_settings(r#"{"test_command":"  "}"#), None);
+        assert_eq!(test_command_from_settings("not json"), None);
+    }
+
+    #[test]
+    fn merge_sets_removes_and_preserves_other_keys() {
+        // Set into an object that has another key — the other key survives.
+        let merged = merge_test_command(r#"{"keep":"yes"}"#, Some("cargo test"));
+        assert!(merged.contains("\"keep\":\"yes\""));
+        assert_eq!(test_command_from_settings(&merged).as_deref(), Some("cargo test"));
+
+        // Remove with None.
+        let cleared = merge_test_command(&merged, None);
+        assert!(cleared.contains("\"keep\":\"yes\""));
+        assert_eq!(test_command_from_settings(&cleared), None);
+
+        // Blank is treated as removal.
+        assert_eq!(test_command_from_settings(&merge_test_command("{}", Some("   "))), None);
+
+        // Malformed input becomes a fresh object holding just the command.
+        assert_eq!(
+            test_command_from_settings(&merge_test_command("garbage", Some("x"))).as_deref(),
+            Some("x")
+        );
     }
 }

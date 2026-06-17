@@ -17,21 +17,6 @@ fn is_valid_status(status: &str) -> bool {
     REVIEW_STATUSES.contains(&status)
 }
 
-/// Read an optional `test_command` string from a project's `settings_json`. Empty
-/// or whitespace-only values are treated as absent. The command is captured for a
-/// later milestone (M9); it is never executed here.
-fn test_command_from_settings(settings_json: &str) -> Option<String> {
-    serde_json::from_str::<serde_json::Value>(settings_json)
-        .ok()
-        .and_then(|v| {
-            v.get("test_command")
-                .and_then(|t| t.as_str())
-                .map(|s| s.to_string())
-        })
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
-
 #[tauri::command]
 pub fn list_reviews(
     state: State<'_, Mutex<Connection>>,
@@ -69,7 +54,7 @@ pub fn create_review_for_coding_workspace(
         };
         let test_command = project::get(&conn, &cw.project_id)
             .map_err(|e| e.to_string())?
-            .and_then(|p| test_command_from_settings(&p.settings_json));
+            .and_then(|p| project::test_command_from_settings(&p.settings_json));
         (cw.workspace_id, cw.worktree_path, test_command)
     };
 
@@ -92,6 +77,7 @@ pub fn create_review_for_coding_workspace(
         &snapshot.diff_stat,
         &snapshot.files,
         test_command.as_deref(),
+        "",
         &risk_notes,
     )
     .map_err(|e| e.to_string())
@@ -121,16 +107,5 @@ mod tests {
         assert!(is_valid_status("changes-requested"));
         assert!(!is_valid_status("bogus"));
         assert!(!is_valid_status(""));
-    }
-
-    #[test]
-    fn test_command_parsing() {
-        assert_eq!(
-            test_command_from_settings(r#"{"test_command":"pnpm test"}"#).as_deref(),
-            Some("pnpm test")
-        );
-        assert_eq!(test_command_from_settings("{}"), None);
-        assert_eq!(test_command_from_settings(r#"{"test_command":"  "}"#), None);
-        assert_eq!(test_command_from_settings("not json"), None);
     }
 }

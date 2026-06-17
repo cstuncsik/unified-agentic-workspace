@@ -44,10 +44,20 @@ export const useProjectsStore = defineStore("projects", () => {
     }
   }
 
+  async function setTestCommand(id: string, command: string) {
+    const trimmed = command.trim();
+    const project = await api.setProjectTestCommand(id, trimmed === "" ? null : trimmed);
+    if (project) {
+      const i = list.value.findIndex((p) => p.id === id);
+      if (i >= 0) list.value[i] = project;
+    }
+    return project;
+  }
+
   async function remove(id: string) {
     await api.deleteProject(id);
     list.value = list.value.filter((p) => p.id !== id);
   }
 
-  return { list, loading, error, load, create, rename, remove };
+  return { list, loading, error, load, create, rename, setTestCommand, remove };
 });

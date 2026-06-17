@@ -79,6 +79,20 @@ pub fn update_project(
 }
 
 #[tauri::command]
+pub fn set_project_test_command(
+    state: State<'_, Mutex<Connection>>,
+    id: String,
+    test_command: Option<String>,
+) -> Result<Option<Project>, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    let Some(project) = project::get(&conn, &id).map_err(|e| e.to_string())? else {
+        return Ok(None);
+    };
+    let merged = project::merge_test_command(&project.settings_json, test_command.as_deref());
+    project::update_settings_json(&conn, &id, &merged).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn delete_project(state: State<'_, Mutex<Connection>>, id: String) -> Result<bool, String> {
     let conn = state.lock().map_err(|e| e.to_string())?;
     project::delete(&conn, &id).map_err(|e| e.to_string())

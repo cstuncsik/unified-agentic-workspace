@@ -1,12 +1,16 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager, State};
 
 use crate::models::coding_workspace::{self, CodingWorkspace};
+use crate::models::event;
+use crate::models::review::{self, Review};
 use crate::models::{project, repository};
 use crate::services::git::{self, WorktreeDiff};
+use crate::services::{check, completion, review as review_svc};
 use crate::util::new_id;
 
 /// Base directory for generated worktrees. `UAW_WORKTREES_DIR` overrides it (used
@@ -167,4 +171,89 @@ pub fn discard_coding_workspace(
 
     let conn = state.lock().map_err(|e| e.to_string())?;
     coding_workspace::delete(&conn, &id).map_err(|e| e.to_string())
+}
+
+/// Maximum wall-clock time a configured check may run before it is killed.
+const CHECK_TIMEOUT: Duration = Duration::from_secs(600);
+
+/// Complete a coding workspace: snapshot the diff, run the project's configured
+/// check (if any), persist a review with the captured output and risk flags, move
+/// the workspace to Needs Review, and record a completion event. A failing or
+/// timed-out check still completes (with a risk flag); only a snapshot or DB
+/// error aborts.
+#[tauri::command]
+pub fn complete_coding_workspace(
+    state: State<'_, Mutex<Connection>>,
+    coding_workspace_id: String,
+) -> Result<Review, String> {
+    // Resolve the workspace + worktree path + configured command under the lock,
+    // then release it before the (potentially slow) git + check work.
+    let (workspace_id, worktree_path, test_command) = {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        let Some(cw) =
+            coding_workspace::get(&conn, &coding_workspace_id).map_err(|e| e.to_string())?
+        else {
+            return Err(format!(
+                "Coding workspace '{coding_workspace_id}' does not exist"
+            ));
+        };
+        let test_command = project::get(&conn, &cw.project_id)
+            .map_err(|e| e.to_string())?
+            .and_then(|p| project::test_command_from_settings(&p.settings_json));
+        (cw.workspace_id, cw.worktree_path, test_command)
+    };
+
+    let snapshot = git::review_snapshot(Path::new(&worktree_path));
+    if let Some(e) = snapshot.error {
+        return Err(e);
+    }
+
+    let outcome = match &test_command {
+        Some(cmd) => check::run_check(Path::new(&worktree_path), cmd, CHECK_TIMEOUT),
+        None => check::CheckOutcome::not_run(),
+    };
+
+    let summary = review_svc::summarize(&snapshot);
+    let risk_notes =
+        completion::augment_risk_notes(review_svc::compute_risk_notes(&snapshot), &outcome);
+    let test_output =
+        completion::format_test_output(test_command.as_deref().unwrap_or(""), &outcome);
+
+    let review_id = new_id();
+    let payload = serde_json::json!({
+        "coding_workspace_id": coding_workspace_id,
+        "review_id": review_id,
+        "checks_ran": outcome.ran,
+        "checks_passed": outcome.passed(),
+    })
+    .to_string();
+
+    // Persist the review, status move, and event together under one lock.
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    let review = review::create(
+        &conn,
+        &review_id,
+        &workspace_id,
+        &coding_workspace_id,
+        &summary,
+        &snapshot.status_short,
+        &snapshot.diff_stat,
+        &snapshot.files,
+        test_command.as_deref(),
+        &test_output,
+        &risk_notes,
+    )
+    .map_err(|e| e.to_string())?;
+    coding_workspace::update_status(&conn, &coding_workspace_id, "needs-review")
+        .map_err(|e| e.to_string())?;
+    event::create(
+        &conn,
+        &new_id(),
+        &workspace_id,
+        "coding_workspace.completed",
+        &payload,
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(review)
 }

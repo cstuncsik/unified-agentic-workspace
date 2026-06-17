@@ -75,6 +75,7 @@ pub fn create(
     diff_stat: &str,
     files: &[String],
     test_command: Option<&str>,
+    test_output: &str,
     risk_notes: &[String],
 ) -> rusqlite::Result<Review> {
     let now = now_rfc3339();
@@ -84,7 +85,7 @@ pub fn create(
         "INSERT INTO reviews
            (id, workspace_id, coding_workspace_id, status, summary, status_short, diff_stat,
             files_json, test_command, test_output, risk_notes_json, created_at, updated_at)
-         VALUES (?1, ?2, ?3, 'pending', ?4, ?5, ?6, ?7, ?8, '', ?9, ?10, ?10)",
+         VALUES (?1, ?2, ?3, 'pending', ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
         params![
             id,
             workspace_id,
@@ -94,6 +95,7 @@ pub fn create(
             diff_stat,
             files_json,
             test_command,
+            test_output,
             risk_json,
             now
         ],
@@ -166,6 +168,7 @@ mod tests {
             " README.md | 2 +-",
             &["README.md".to_string()],
             Some("pnpm test"),
+            "",
             &["Large change".to_string()],
         )
         .unwrap()

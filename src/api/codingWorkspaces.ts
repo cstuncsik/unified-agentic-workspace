@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { CodingWorkspace, WorktreeDiff } from "../types/codingWorkspace";
+import type { Review } from "../types/review";
 
 export function listCodingWorkspaces(workspaceId: string): Promise<CodingWorkspace[]> {
   return invoke<CodingWorkspace[]>("list_coding_workspaces", { workspaceId });
@@ -30,4 +31,8 @@ export function markCodingWorkspaceReadyForReview(id: string): Promise<CodingWor
 
 export function discardCodingWorkspace(id: string, force: boolean): Promise<boolean> {
   return invoke<boolean>("discard_coding_workspace", { id, force });
+}
+
+export function completeCodingWorkspace(id: string): Promise<Review> {
+  return invoke<Review>("complete_coding_workspace", { codingWorkspaceId: id });
 }

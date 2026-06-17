@@ -24,6 +24,7 @@ const newBranchName = ref("");
 const branches = ref<string[]>([]);
 const submitting = ref(false);
 const expandedId = ref<string | null>(null);
+const completingId = ref<string | null>(null);
 
 // Worktrees can only be created for repo-backed projects.
 const codeProjects = computed(() =>
@@ -141,6 +142,19 @@ async function createReview(id: string) {
   }
 }
 
+async function completeAndReview(id: string) {
+  completingId.value = id;
+  try {
+    const review = await coding.complete(id);
+    reviews.insert(review);
+    toast.success("Completed — review ready in Reviews");
+  } catch (e) {
+    toast.error(String(e));
+  } finally {
+    completingId.value = null;
+  }
+}
+
 async function discardWorktree(id: string, branch: string) {
   // Refresh the diff so the confirmation can warn about uncommitted work.
   await coding.refreshDiff(id);
@@ -253,6 +267,16 @@ async function discardWorktree(id: string, branch: string) {
               @click="createReview(cw.id)"
             >
               Create review
+            </button>
+            <button
+              type="button"
+              class="re-button"
+              data-variant="brand"
+              data-size="sm"
+              :disabled="completingId === cw.id"
+              @click="completeAndReview(cw.id)"
+            >
+              {{ completingId === cw.id ? "Running checks…" : "Complete and review" }}
             </button>
             <button
               type="button"

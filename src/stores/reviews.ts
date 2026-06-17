@@ -48,5 +48,11 @@ export const useReviewsStore = defineStore("reviews", () => {
     return updated;
   }
 
-  return { list, loading, error, load, createForCodingWorkspace, updateStatus };
+  function insert(review: Review) {
+    const i = list.value.findIndex((r) => r.id === review.id);
+    if (i >= 0) list.value[i] = review;
+    else list.value.unshift(review);
+  }
+
+  return { list, loading, error, load, createForCodingWorkspace, updateStatus, insert };
 });
