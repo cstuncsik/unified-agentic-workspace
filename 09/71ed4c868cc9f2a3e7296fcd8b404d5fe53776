@@ -1,0 +1,20 @@
+docs/superpowers/specs/2026-06-17-agent-terminals-design.md
+  s_b49f7388e23022::t_9c92d9d92b9e86 122-125
+  s_b49f7388e23022::t_38b4b596457c72 1-121,126-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "0971ed4c868cc9f2a3e7296fcd8b404d5fe53776",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
