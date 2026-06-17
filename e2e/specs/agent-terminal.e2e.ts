@@ -1,10 +1,21 @@
-import { browser, $, expect } from "@wdio/globals";
+import { browser, $, $$, expect } from "@wdio/globals";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 const textOf = (selector: string) =>
   browser.execute((sel) => document.querySelector(sel)?.textContent ?? "", selector);
+
+// Text of the currently-visible terminal. Multiple terminals stay mounted (v-show),
+// so a bare querySelector would always read the first; pick the one that is shown.
+const visibleTermText = () =>
+  browser.execute(() => {
+    const terms = Array.from(
+      document.querySelectorAll('[data-testid="agent-terminal"]'),
+    ) as HTMLElement[];
+    const vis = terms.find((t) => t.offsetParent !== null) ?? terms[terms.length - 1];
+    return vis ? (vis.textContent ?? "") : "";
+  });
 
 const REPO = "/tmp/fixture-repo-agent";
 
@@ -78,15 +89,56 @@ describe("agent terminals", () => {
       async () => (await textOf('[data-testid="agent-terminal"]')).includes("ping-uaw"),
       { timeout: 15_000, timeoutMsg: "expected typed input to be echoed in the terminal" },
     );
+    // Leave this terminal running for the next test (multi-tab keep-alive).
+  });
 
-    // Stop the session; the tab status reflects a terminal state.
-    await (await $("button*=Stop")).click();
+  it("isolates streams across tabs and preserves them when switching", async () => {
+    // Open a SECOND terminal on the same worktree; the picker keeps its selection.
+    await (await $("button*=New terminal")).click();
+    await browser.waitUntil(async () => (await $$('[data-testid="agent-tab"]').length) === 2, {
+      timeout: 10_000,
+      timeoutMsg: "expected a second agent tab to open",
+    });
+
+    // The new (active) terminal shows its own banner...
+    await browser.waitUntil(async () => (await visibleTermText()).includes("AGENT-READY"), {
+      timeout: 15_000,
+      timeoutMsg: "expected the second terminal's banner",
+    });
+    // ...and its own echoed input (the second terminal is the visible one).
+    await (await $$('[data-testid="agent-terminal"]'))[1].click();
+    await browser.keys("pong-two");
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => (await visibleTermText()).includes("pong-two"), {
+      timeout: 15_000,
+      timeoutMsg: "expected the second terminal to echo its own input",
+    });
+
+    // Switch back to the first tab: its content survived (keep-alive) and the
+    // second tab's input never leaked into it (per-session routing).
+    await (await $$('[data-testid="agent-tab"]'))[0].click();
     await browser.waitUntil(
       async () => {
-        const t = (await textOf('[data-testid="agent-tab"]')).toLowerCase();
-        return t.includes("stopped") || t.includes("exited") || t.includes("failed");
+        const t = await visibleTermText();
+        return t.includes("ping-uaw") && !t.includes("pong-two");
       },
-      { timeout: 15_000, timeoutMsg: "expected the session to reach a terminal status" },
+      {
+        timeout: 15_000,
+        timeoutMsg: "expected the first terminal to retain its own isolated stream",
+      },
+    );
+
+    // Stop the active (first) session; a user stop must report 'stopped'
+    // (not a kill-induced 'failed').
+    await (await $("button*=Stop")).click();
+    await browser.waitUntil(
+      async () =>
+        browser.execute(() =>
+          Array.from(document.querySelectorAll('[data-testid="agent-tab"]')).some((el) =>
+            (el.textContent ?? "").toLowerCase().includes("stopped"),
+          ),
+        ),
+      { timeout: 15_000, timeoutMsg: "expected the stopped session to report 'stopped'" },
     );
   });
 });

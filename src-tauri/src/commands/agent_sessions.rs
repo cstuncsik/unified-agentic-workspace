@@ -76,7 +76,12 @@ pub fn get_agent_session_transcript(
         };
         s.transcript_path
     };
-    Ok(std::fs::read_to_string(&path).unwrap_or_default())
+    // Raw PTY bytes are appended verbatim and can contain non-UTF-8 (a multibyte
+    // codepoint split across a read boundary, or control bytes), so read as bytes
+    // and lossily decode — read_to_string would error and drop the whole file.
+    Ok(std::fs::read(&path)
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+        .unwrap_or_default())
 }
 
 #[tauri::command]
@@ -179,21 +184,34 @@ pub fn start_agent_session(
             );
         });
 
-        let (status, code) = match child.wait() {
+        let (wait_status, wait_code) = match child.wait() {
             Ok(s) if s.success() => ("exited".to_string(), Some(s.exit_code() as i64)),
             Ok(s) => ("failed".to_string(), Some(s.exit_code() as i64)),
             Err(_) => ("failed".to_string(), None),
         };
 
-        if let Some(conn) = thread_app.try_state::<Mutex<Connection>>() {
+        // Emit the EFFECTIVE persisted status, not the raw wait result. A user
+        // stop forces 'stopped' before killing, and kill makes wait() report
+        // success()==false → "failed". mark_exited only moves a still-running
+        // session, so re-read the row and surface that to the event log + UI —
+        // otherwise a deliberate stop would be reported as a failure.
+        let (status, code) = if let Some(conn) = thread_app.try_state::<Mutex<Connection>>() {
             if let Ok(conn) = conn.lock() {
-                let _ = agent_session::mark_exited(&conn, &thread_id, &status, code);
+                let _ = agent_session::mark_exited(&conn, &thread_id, &wait_status, wait_code);
+                let row = agent_session::get(&conn, &thread_id).ok().flatten();
+                let status = row.as_ref().map(|s| s.status.clone()).unwrap_or(wait_status);
+                let code = row.as_ref().and_then(|s| s.exit_code);
                 let payload =
                     serde_json::json!({ "agent_session_id": thread_id, "status": status })
                         .to_string();
                 let _ = event::create(&conn, &new_id(), &thread_ws, "agent.exited", &payload);
+                (status, code)
+            } else {
+                (wait_status, wait_code)
             }
-        }
+        } else {
+            (wait_status, wait_code)
+        };
         let _ = thread_app.emit(
             "agent-exit",
             AgentExit {

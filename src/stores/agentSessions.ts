@@ -41,7 +41,17 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     }
   }
 
-  function closeTab(id: string) {
+  async function closeTab(id: string) {
+    const tab = tabs.value.find((t) => t.session.id === id);
+    // Closing a running tab must stop its PTY, else the child + registry handle
+    // leak for the app's lifetime (there is no re-attach in M10a).
+    if (tab && tab.session.status === "running") {
+      try {
+        await api.stopAgentSession(id);
+      } catch {
+        /* already gone */
+      }
+    }
     tabs.value = tabs.value.filter((t) => t.session.id !== id);
     if (activeId.value === id) {
       activeId.value = tabs.value.length ? tabs.value[tabs.value.length - 1].session.id : null;
