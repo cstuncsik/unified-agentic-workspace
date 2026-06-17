@@ -1,0 +1,25 @@
+package.json
+  s_b49f7388e23022::t_2b21fde009b3e4 24-25
+src/types/agentSession.ts
+  s_b49f7388e23022::t_af819919da5395 1-41
+src/stores/agentSessions.ts
+  s_b49f7388e23022::t_072b6a169912fb 1-52
+src/api/agentSessions.ts
+  s_b49f7388e23022::t_3b616e5c89acdb 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "3f2247ab1f7e682a48a549d65b413e44cb52fa93",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
