@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-17-agent-terminals.md
+  s_b49f7388e23022::t_ee59d750d2615e 1-1518
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "e762f5eea52279882f55f34fbba5e740da7b5bfc",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
