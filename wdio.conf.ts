@@ -53,6 +53,8 @@ export const config: WebdriverIO.Config = {
     sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), `uaw-e2e-${specName}-`));
     process.env.UAW_DB_PATH = path.join(sessionDir, "uaw.sqlite");
     process.env.UAW_WORKTREES_DIR = path.join(sessionDir, "worktrees");
+    process.env.UAW_TRANSCRIPTS_DIR = path.join(sessionDir, "transcripts");
+    process.env.UAW_AGENT_BIN = "/tmp/uaw-fake-agent";
 
     // tauri-driver listens on :4444 and forwards to the platform WebDriver.
     tauriDriver = spawn("tauri-driver", [], {
