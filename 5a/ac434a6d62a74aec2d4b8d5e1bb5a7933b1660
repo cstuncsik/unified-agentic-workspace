@@ -1,0 +1,23 @@
+wdio.conf.ts
+  s_b49f7388e23022::t_368ae39b4ce862 56-57
+scripts/run-e2e.sh
+  s_b49f7388e23022::t_10fd6d696f57ec 33-41
+e2e/specs/agent-terminal.e2e.ts
+  s_b49f7388e23022::t_31c31c7ce0aba2 1-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "5aac434a6d62a74aec2d4b8d5e1bb5a7933b1660",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
