@@ -78,10 +78,13 @@ onBeforeUnmount(() => {
 <style scoped>
 .terminal {
   width: 100%;
-  height: 100%;
-  min-height: 24rem;
+  /* Fill the flex height the Agents pane gives us; min-height:0 lets the box
+     shrink so xterm scrolls internally instead of pushing the page taller. */
+  flex: 1;
+  min-height: 0;
   background: #000;
   padding: 0.25rem;
   border-radius: var(--re-radius-md, 6px);
+  overflow: hidden;
 }
 </style>

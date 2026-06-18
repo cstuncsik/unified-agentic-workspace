@@ -288,6 +288,10 @@ body {
 .main {
   padding: 2rem;
   overflow: auto;
+  /* Flex column so a full-height view (e.g. the agent terminal) can fill the
+     space left under the header instead of overflowing the scroll area. */
+  display: flex;
+  flex-direction: column;
 }
 
 .main__header {

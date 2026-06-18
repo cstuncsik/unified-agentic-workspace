@@ -166,7 +166,8 @@ async function openTerminal() {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 .agents__bar {
   display: flex;
@@ -211,12 +212,15 @@ async function openTerminal() {
 .agents__pane {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .agents__term {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 .agents__termhead {
   display: flex;
