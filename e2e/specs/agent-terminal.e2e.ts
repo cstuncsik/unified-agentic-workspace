@@ -141,4 +141,28 @@ describe("agent terminals", () => {
       { timeout: 15_000, timeoutMsg: "expected the stopped session to report 'stopped'" },
     );
   });
+
+  it("scopes terminal tabs to the current workspace", async () => {
+    // The two tabs from the previous tests live in the default workspace.
+    await browser.waitUntil(async () => (await $$('[data-testid="agent-tab"]').length) === 2, {
+      timeout: 10_000,
+      timeoutMsg: "expected the default workspace's two tabs",
+    });
+
+    // Create + switch to a second workspace — its Agents view shows no terminals.
+    await (await $('[aria-label="New workspace"]')).click();
+    await (await $('[aria-label="New workspace name"]')).setValue("Other");
+    await (await $('button[title="Create"]')).click();
+    await browser.waitUntil(async () => (await $$('[data-testid="agent-tab"]').length) === 0, {
+      timeout: 10_000,
+      timeoutMsg: "expected no agent tabs in the other workspace",
+    });
+
+    // Switching back restores the original workspace's terminals.
+    await (await $('[aria-label="Select workspace"]')).selectByVisibleText("Default");
+    await browser.waitUntil(async () => (await $$('[data-testid="agent-tab"]').length) === 2, {
+      timeout: 10_000,
+      timeoutMsg: "expected the original workspace's tabs to return after switching back",
+    });
+  });
 });

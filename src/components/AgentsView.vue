@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useAgentSessionsStore } from "../stores/agentSessions";
 import { useCodingWorkspacesStore } from "../stores/codingWorkspaces";
+import { useWorkspacesStore } from "../stores/workspaces";
 import { useToast } from "../composables/useToast";
 import TerminalTab from "./TerminalTab.vue";
 
 const store = useAgentSessionsStore();
 const coding = useCodingWorkspacesStore();
+const workspaces = useWorkspacesStore();
 const toast = useToast();
 
 const newWorktreeId = ref("");
@@ -28,6 +30,28 @@ const worktreeLabel = (id: string) => {
 };
 const adapterLabel = (id: string) => store.adapters.find((a) => a.id === id)?.name ?? id;
 
+// Agent tabs persist in memory for the whole app session, but each belongs to one
+// workspace. Only show the current workspace's terminals; the others stay mounted
+// (hidden) and reappear when you switch back.
+const visibleTabs = computed(() =>
+  store.tabs.filter((t) => t.session.workspace_id === workspaces.currentId),
+);
+
+// On a workspace switch, clear the stale worktree selection and make sure the
+// active tab belongs to the new workspace (otherwise another workspace's terminal
+// would stay shown — and its label would resolve against the wrong coding list).
+watch(
+  () => workspaces.currentId,
+  () => {
+    newWorktreeId.value = "";
+    if (!visibleTabs.value.some((t) => t.session.id === store.activeId)) {
+      store.activeId = visibleTabs.value.length
+        ? visibleTabs.value[visibleTabs.value.length - 1].session.id
+        : null;
+    }
+  },
+);
+
 async function openTerminal() {
   if (!canStart.value) return;
   starting.value = true;
@@ -47,7 +71,7 @@ async function openTerminal() {
     <header class="agents__bar">
       <ul class="tabs">
         <li
-          v-for="t in store.tabs"
+          v-for="t in visibleTabs"
           :key="t.session.id"
           class="tab"
           :class="{ 'tab--active': t.session.id === store.activeId }"
