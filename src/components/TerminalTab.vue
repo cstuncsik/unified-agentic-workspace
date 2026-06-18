@@ -87,4 +87,23 @@ onBeforeUnmount(() => {
   border-radius: var(--re-radius-md, 6px);
   overflow: hidden;
 }
+
+/* xterm injects .xterm-viewport with its own scrollbar (shown for inline CLIs
+   like Codex that use the normal buffer + scrollback, unlike Claude Code's
+   alt-screen). Theme it thin + dark via :deep so it blends into the terminal
+   instead of reading like a separate page scrollbar. */
+.terminal :deep(.xterm-viewport) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.terminal :deep(.xterm-viewport)::-webkit-scrollbar {
+  width: 10px;
+}
+.terminal :deep(.xterm-viewport)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+}
+.terminal :deep(.xterm-viewport)::-webkit-scrollbar-track {
+  background: transparent;
+}
 </style>
