@@ -1,0 +1,23 @@
+e2e/specs/agent-terminal.e2e.ts
+  s_b49f7388e23022::t_6b03db77c0a3ad 144-167
+src/components/AgentsView.vue
+  s_b49f7388e23022::t_5bd8eed03dfd84 2,5,11
+  s_b49f7388e23022::t_0efb9afd354cc6 74
+  s_b49f7388e23022::t_ad026742000847 33-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "a1f05e82830fff61f93e05f621189405d385bf10",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
