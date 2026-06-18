@@ -1,0 +1,24 @@
+src/components/TerminalTab.vue
+  s_b49f7388e23022::t_1828ae98cf1365 81-84,88
+src/App.vue
+  s_b49f7388e23022::t_91393b9400643e 291-294
+src/components/AgentsView.vue
+  s_b49f7388e23022::t_7645942d26cecc 169-170
+  s_b49f7388e23022::t_306833f4f45f52 215-216,222-223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "b437002aefb24fabab1c1d954dd1c0999ebf0c6e",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
