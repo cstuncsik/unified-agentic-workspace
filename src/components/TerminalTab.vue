@@ -17,12 +17,26 @@ let fit: FitAddon | null = null;
 let resizeObserver: ResizeObserver | null = null;
 const unlisten: UnlistenFn[] = [];
 
+// Fit the terminal to its container and push the size to the PTY. Guarded so we
+// never fit while the element is hidden (a tab not in front) or before layout —
+// a 0-height fit would collapse the terminal to a sliver, leaving its output
+// stuck in scrollback. Growing the rows later reflows those lines back into view.
+function doFit() {
+  if (!fit || !term || !host.value) return;
+  if (host.value.clientHeight < 1 || host.value.clientWidth < 1) return;
+  try {
+    fit.fit();
+  } catch {
+    return;
+  }
+  api.resizeAgentSession(props.sessionId, term.cols, term.rows).catch(() => {});
+}
+
 onMounted(async () => {
   term = new Terminal({ convertEol: false, cursorBlink: true, fontSize: 13 });
   fit = new FitAddon();
   term.loadAddon(fit);
   if (host.value) term.open(host.value);
-  fit.fit();
 
   // Replay any existing transcript (reopened/finished session), then go live.
   try {
@@ -53,15 +67,16 @@ onMounted(async () => {
     }),
   );
 
-  // Keep the PTY size in sync with the container.
-  resizeObserver = new ResizeObserver(() => {
-    if (!fit || !term) return;
-    fit.fit();
-    api.resizeAgentSession(props.sessionId, term.cols, term.rows).catch(() => {});
-  });
+  // Keep the PTY size in sync with the container (fires on show/hide + resize).
+  resizeObserver = new ResizeObserver(() => doFit());
   if (host.value) resizeObserver.observe(host.value);
-  // Push the initial fitted size to the backend.
-  if (term) api.resizeAgentSession(props.sessionId, term.cols, term.rows).catch(() => {});
+
+  // Fit once layout has settled (next frame), and again once the monospace font
+  // metrics are known, so the terminal fills its container from the start.
+  requestAnimationFrame(() => doFit());
+  if (typeof document !== "undefined" && document.fonts?.ready) {
+    document.fonts.ready.then(() => doFit());
+  }
 });
 
 onBeforeUnmount(() => {
