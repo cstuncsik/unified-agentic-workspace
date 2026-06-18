@@ -13,6 +13,8 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
   const tabs = ref<OpenTab[]>([]);
   const activeId = ref<string | null>(null);
   const error = ref<string | null>(null);
+  /** The last-focused tab per workspace id, so switching back restores it. */
+  const lastActiveByWorkspace = ref<Record<string, string | null>>({});
 
   async function loadAdapters() {
     try {
@@ -58,5 +60,16 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     }
   }
 
-  return { adapters, tabs, activeId, error, loadAdapters, start, stop, setStatus, closeTab };
+  return {
+    adapters,
+    tabs,
+    activeId,
+    error,
+    lastActiveByWorkspace,
+    loadAdapters,
+    start,
+    stop,
+    setStatus,
+    closeTab,
+  };
 });

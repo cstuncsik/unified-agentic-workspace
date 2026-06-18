@@ -142,11 +142,24 @@ describe("agent terminals", () => {
     );
   });
 
-  it("scopes terminal tabs to the current workspace", async () => {
+  it("scopes terminal tabs to the workspace and restores the focused tab on return", async () => {
+    const tabActive = (index: number) =>
+      browser.execute((i) => {
+        const tabs = document.querySelectorAll('[data-testid="agent-tab"]');
+        return tabs[i] ? tabs[i].classList.contains("tab--active") : false;
+      }, index);
+
     // The two tabs from the previous tests live in the default workspace.
     await browser.waitUntil(async () => (await $$('[data-testid="agent-tab"]').length) === 2, {
       timeout: 10_000,
       timeoutMsg: "expected the default workspace's two tabs",
+    });
+
+    // Focus the FIRST tab (so we can verify focus is restored, not reset to last).
+    await (await $$('[data-testid="agent-tab"]'))[0].click();
+    await browser.waitUntil(async () => tabActive(0), {
+      timeout: 5_000,
+      timeoutMsg: "expected the first tab to become active",
     });
 
     // Create + switch to a second workspace — its Agents view shows no terminals.
@@ -158,11 +171,16 @@ describe("agent terminals", () => {
       timeoutMsg: "expected no agent tabs in the other workspace",
     });
 
-    // Switching back restores the original workspace's terminals.
+    // Switching back restores the original workspace's terminals AND the tab that
+    // was focused (the first one) — not the last.
     await (await $('[aria-label="Select workspace"]')).selectByVisibleText("Default");
     await browser.waitUntil(async () => (await $$('[data-testid="agent-tab"]').length) === 2, {
       timeout: 10_000,
       timeoutMsg: "expected the original workspace's tabs to return after switching back",
+    });
+    await browser.waitUntil(async () => tabActive(0), {
+      timeout: 10_000,
+      timeoutMsg: "expected the originally-focused (first) tab to be restored, not the last",
     });
   });
 });

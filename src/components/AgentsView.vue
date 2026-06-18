@@ -37,14 +37,20 @@ const visibleTabs = computed(() =>
   store.tabs.filter((t) => t.session.workspace_id === workspaces.currentId),
 );
 
-// On a workspace switch, clear the stale worktree selection and make sure the
-// active tab belongs to the new workspace (otherwise another workspace's terminal
-// would stay shown — and its label would resolve against the wrong coding list).
+// On a workspace switch, clear the stale worktree selection and re-point the
+// active tab at the new workspace. We remember the tab that was focused in each
+// workspace so switching back restores *that* tab (not just the last one), and
+// only fall back to the last visible tab when there's nothing to restore.
 watch(
   () => workspaces.currentId,
-  () => {
+  (newId, oldId) => {
+    if (oldId) store.lastActiveByWorkspace[oldId] = store.activeId;
     newWorktreeId.value = "";
-    if (!visibleTabs.value.some((t) => t.session.id === store.activeId)) {
+
+    const remembered = newId ? store.lastActiveByWorkspace[newId] : null;
+    if (remembered && visibleTabs.value.some((t) => t.session.id === remembered)) {
+      store.activeId = remembered;
+    } else if (!visibleTabs.value.some((t) => t.session.id === store.activeId)) {
       store.activeId = visibleTabs.value.length
         ? visibleTabs.value[visibleTabs.value.length - 1].session.id
         : null;
