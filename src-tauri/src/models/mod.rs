@@ -3,6 +3,7 @@ pub mod agent_session;
 pub mod coding_workspace;
 pub mod event;
 pub mod project;
+pub mod provider_account;
 pub mod repository;
 pub mod review;
 pub mod session;
