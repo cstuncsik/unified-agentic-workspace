@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-19-artifacts.md
+  s_b49f7388e23022::t_4b8d5b59fd77eb 1-1111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "880fb0db4307e48e0f59affb4db2ae14347552dd",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
