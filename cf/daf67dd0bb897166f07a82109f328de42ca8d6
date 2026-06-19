@@ -1,0 +1,20 @@
+docs/superpowers/plans/2026-06-19-dispatch.md
+  s_b49f7388e23022::t_441febed223789 769-773,786
+  s_b49f7388e23022::t_527d307a62d50c 1-768,774-785,787-1326
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "cfdaf67dd0bb897166f07a82109f328de42ca8d6",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
