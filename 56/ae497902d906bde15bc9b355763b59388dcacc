@@ -1,0 +1,23 @@
+src/api/providerAccounts.ts
+  s_b49f7388e23022::t_1f9eff28cb5ca2 1-21
+src/stores/providerAccounts.ts
+  s_b49f7388e23022::t_b2fb56d4796095 1-47
+src/types/providerAccount.ts
+  s_b49f7388e23022::t_a7207e44d867f3 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "56ae497902d906bde15bc9b355763b59388dcacc",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
