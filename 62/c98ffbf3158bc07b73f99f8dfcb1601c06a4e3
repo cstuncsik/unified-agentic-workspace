@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-06-19-provider-accounts-design.md
+  s_b49f7388e23022::t_df598d7cb1caab 1-323
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "62c98ffbf3158bc07b73f99f8dfcb1601c06a4e3",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
