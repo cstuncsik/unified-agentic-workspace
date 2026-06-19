@@ -1,0 +1,27 @@
+src-tauri/src/db/migrations/0010_provider_accounts.sql
+  s_b49f7388e23022::t_c797ae97c7a4bb 1-17
+src-tauri/src/models/workspace.rs
+  s_b49f7388e23022::t_a4bce28748d4c7 144
+src-tauri/src/db/mod.rs
+  s_b49f7388e23022::t_bf14a7b43e0bd2 55-59
+src-tauri/src/models/provider_account.rs
+  s_b49f7388e23022::t_e8770eac9f565a 1-142
+src-tauri/src/models/mod.rs
+  s_b49f7388e23022::t_ba1c632bcefb4e 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "3dab77ea3a360a8a815e49b81fe6dbcd73a9ae41",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
