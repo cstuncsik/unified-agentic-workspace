@@ -4,6 +4,7 @@ use rusqlite::Connection;
 use tauri::State;
 
 use crate::models::workspace::{self, Workspace};
+use crate::services::keystore;
 
 #[tauri::command]
 pub fn list_workspaces(state: State<'_, Mutex<Connection>>) -> Result<Vec<Workspace>, String> {
@@ -56,6 +57,13 @@ pub fn update_workspace(
 
 #[tauri::command]
 pub fn delete_workspace(state: State<'_, Mutex<Connection>>, id: String) -> Result<bool, String> {
+    let store = keystore::resolve();
+    // Remove keychain entries for this workspace's provider accounts BEFORE the
+    // row cascade, so no keychain_ref is left orphaned. Short lock for the read.
+    {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        crate::commands::provider_accounts::cleanup_workspace_keys(&conn, store.as_ref(), &id);
+    }
     let conn = state.lock().map_err(|e| e.to_string())?;
     workspace::delete(&conn, &id).map_err(|e| e.to_string())
 }
