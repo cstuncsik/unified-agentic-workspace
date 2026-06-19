@@ -152,6 +152,7 @@ mod tests {
             &format!("/tmp/worktrees/{cw_id}"),
             "feature/x",
             "main",
+            None,
         )
         .unwrap();
         (ws, cw.id)

@@ -81,6 +81,9 @@ pub fn run() {
             commands::agent_sessions::write_agent_session,
             commands::agent_sessions::resize_agent_session,
             commands::agent_sessions::stop_agent_session,
+            commands::dispatch::extract_artifact_tasks,
+            commands::dispatch::list_artifact_sessions,
+            commands::dispatch::dispatch_artifact,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

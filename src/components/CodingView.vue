@@ -7,7 +7,7 @@ import { useCodingWorkspacesStore } from "../stores/codingWorkspaces";
 import { useReviewsStore } from "../stores/reviews";
 import { useToast } from "../composables/useToast";
 import { useConfirm } from "../composables/useConfirm";
-import { listRepositoryBranches } from "../api/repositories";
+import { useRepositoryBranches } from "../composables/useRepositoryBranches";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
@@ -19,9 +19,7 @@ const { confirm } = useConfirm();
 
 const newProjectId = ref("");
 const newRepoId = ref("");
-const newBaseBranch = ref("");
 const newBranchName = ref("");
-const branches = ref<string[]>([]);
 const submitting = ref(false);
 const expandedId = ref<string | null>(null);
 const completingId = ref<string | null>(null);
@@ -42,24 +40,16 @@ const canCreate = computed(
     newBranchName.value.trim() !== "",
 );
 
-// When the repository changes, load its branches and default the base branch.
-// A monotonic token discards a stale response if the repo is switched again
-// (or reset) before the previous branch fetch resolves.
-let branchToken = 0;
+// Repo→branches loading + default base live in a shared composable (also used by
+// the dispatch dialog). The watch only surfaces errors; the composable owns the
+// monotonic-token staleness guard.
+const branchHelper = useRepositoryBranches();
+const branches = branchHelper.branches;
+const newBaseBranch = branchHelper.baseBranch;
 watch(newRepoId, async (repoId) => {
-  const token = ++branchToken;
-  branches.value = [];
-  newBaseBranch.value = "";
-  if (!repoId) return;
   try {
-    const result = await listRepositoryBranches(repoId);
-    if (token !== branchToken) return;
-    branches.value = result;
-    const repo = repositories.list.find((r) => r.id === repoId);
-    newBaseBranch.value =
-      repo && result.includes(repo.default_branch) ? repo.default_branch : (result[0] ?? "");
+    await branchHelper.selectRepo(repoId);
   } catch (e) {
-    if (token !== branchToken) return;
     toast.error(String(e));
   }
 });

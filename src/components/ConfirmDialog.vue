@@ -19,7 +19,7 @@ function onClose() {
 </script>
 
 <template>
-  <dialog ref="dialog" class="re-dialog" @close="onClose">
+  <dialog ref="dialog" class="re-dialog" data-testid="confirm-dialog" @close="onClose">
     <header class="re-dialog__header">
       <h2 class="re-dialog__title">{{ title }}</h2>
     </header>

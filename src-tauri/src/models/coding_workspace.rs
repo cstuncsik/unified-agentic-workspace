@@ -72,23 +72,17 @@ pub fn create(
     worktree_path: &str,
     branch_name: &str,
     base_branch: &str,
+    session_id: Option<&str>,
 ) -> rusqlite::Result<CodingWorkspace> {
     let now = now_rfc3339();
     conn.execute(
         "INSERT INTO coding_workspaces
            (id, workspace_id, project_id, repository_source_id, session_id, repo_path,
             worktree_path, branch_name, base_branch, status, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, NULL, ?5, ?6, ?7, ?8, 'worktree-created', ?9, ?9)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'worktree-created', ?10, ?10)",
         params![
-            id,
-            workspace_id,
-            project_id,
-            repository_source_id,
-            repo_path,
-            worktree_path,
-            branch_name,
-            base_branch,
-            now
+            id, workspace_id, project_id, repository_source_id, session_id, repo_path,
+            worktree_path, branch_name, base_branch, now
         ],
     )?;
     Ok(get(conn, id)?.expect("coding workspace exists immediately after insert"))
@@ -153,6 +147,7 @@ mod tests {
             &format!("/tmp/worktrees/{id}"),
             "feature/x",
             "main",
+            None,
         )
         .unwrap()
     }
@@ -175,6 +170,21 @@ mod tests {
         assert_eq!(list(&conn, &ws).unwrap().len(), 1);
         assert!(get(&conn, &cw.id).unwrap().is_some());
         assert!(get(&conn, "missing").unwrap().is_none());
+    }
+
+    #[test]
+    fn create_with_session_id_links_it() {
+        let conn = migrated_conn();
+        let (ws, p, r) = fixtures(&conn);
+        let s = crate::models::session::create(&conn, &ws, Some(&p), "T", "code", "todo", None)
+            .unwrap();
+        let id = new_id();
+        let cw = create(
+            &conn, &id, &ws, &p, &r, "/tmp/repo", &format!("/tmp/wt/{id}"),
+            "feat/x", "main", Some(&s.id),
+        )
+        .unwrap();
+        assert_eq!(cw.session_id.as_deref(), Some(s.id.as_str()));
     }
 
     #[test]

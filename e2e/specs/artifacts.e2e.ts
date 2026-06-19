@@ -69,7 +69,7 @@ describe("markdown artifacts", () => {
     await (await $('[data-testid="artifact-dirty"]')).waitForExist({ timeout: 5_000 });
     await (await $$('[data-testid="artifact-row"]'))[1].click();
 
-    const dialog = await $(".re-dialog");
+    const dialog = await $('[data-testid="confirm-dialog"]');
     await dialog.waitForDisplayed({ timeout: 5_000 });
     // Cancel keeps us on the dirty artifact.
     await dialog.$("button*=Cancel").click();
@@ -91,7 +91,7 @@ describe("markdown artifacts", () => {
     // string is not a valid wdio selector.
     const editor = await $('[data-testid="artifact-editor"]');
     await editor.$("button*=Delete").click();
-    const dialog = await $(".re-dialog");
+    const dialog = await $('[data-testid="confirm-dialog"]');
     await dialog.waitForDisplayed({ timeout: 5_000 });
     await dialog.$("button*=Delete").click();
     await browser.waitUntil(
@@ -127,7 +127,7 @@ describe("markdown artifacts", () => {
     await (await $("button*=Projects")).click();
     const projectRow = await $('[data-testid="project-row"]');
     await projectRow.$("button*=Delete").click();
-    const dialog = await $(".re-dialog");
+    const dialog = await $('[data-testid="confirm-dialog"]');
     await dialog.waitForDisplayed({ timeout: 5_000 });
     await dialog.$("button*=Delete").click();
 

@@ -32,6 +32,7 @@ pub struct Session {
     pub title: String,
     pub mode: String,
     pub status: String,
+    pub created_from_artifact_id: Option<String>,
     pub summary: Option<String>,
     pub permissions_json: String,
     pub context_refs_json: String,
@@ -40,7 +41,8 @@ pub struct Session {
 }
 
 const COLUMNS: &str = "id, workspace_id, project_id, title, mode, status, summary, \
-                       permissions_json, context_refs_json, created_at, updated_at";
+                       permissions_json, context_refs_json, created_from_artifact_id, \
+                       created_at, updated_at";
 
 fn from_row(row: &Row) -> rusqlite::Result<Session> {
     Ok(Session {
@@ -53,6 +55,7 @@ fn from_row(row: &Row) -> rusqlite::Result<Session> {
         summary: row.get("summary")?,
         permissions_json: row.get("permissions_json")?,
         context_refs_json: row.get("context_refs_json")?,
+        created_from_artifact_id: row.get("created_from_artifact_id")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -80,6 +83,20 @@ pub fn list_by_project(
     rows.collect()
 }
 
+pub fn list_by_artifact(
+    conn: &Connection,
+    workspace_id: &str,
+    artifact_id: &str,
+) -> rusqlite::Result<Vec<Session>> {
+    let sql = format!(
+        "SELECT {COLUMNS} FROM sessions
+         WHERE workspace_id = ?1 AND created_from_artifact_id = ?2 ORDER BY created_at DESC"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(params![workspace_id, artifact_id], from_row)?;
+    rows.collect()
+}
+
 pub fn get(conn: &Connection, id: &str) -> rusqlite::Result<Option<Session>> {
     let sql = format!("SELECT {COLUMNS} FROM sessions WHERE id = ?1");
     let mut stmt = conn.prepare(&sql)?;
@@ -90,6 +107,7 @@ pub fn get(conn: &Connection, id: &str) -> rusqlite::Result<Option<Session>> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create(
     conn: &Connection,
     workspace_id: &str,
@@ -97,14 +115,16 @@ pub fn create(
     title: &str,
     mode: &str,
     status: &str,
+    created_from_artifact_id: Option<&str>,
 ) -> rusqlite::Result<Session> {
     let id = new_id();
     let now = now_rfc3339();
     conn.execute(
         "INSERT INTO sessions (id, workspace_id, project_id, title, mode, status,
-                               permissions_json, context_refs_json, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, '{}', '[]', ?7, ?7)",
-        params![id, workspace_id, project_id, title, mode, status, now],
+                               permissions_json, context_refs_json,
+                               created_from_artifact_id, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, '{}', '[]', ?7, ?8, ?8)",
+        params![id, workspace_id, project_id, title, mode, status, created_from_artifact_id, now],
     )?;
     Ok(get(conn, &id)?.expect("session exists immediately after insert"))
 }
@@ -173,7 +193,7 @@ mod tests {
         let ws = workspace_id(&conn);
         assert!(list(&conn, &ws).unwrap().is_empty());
 
-        let session = create(&conn, &ws, None, "Spike research", "research", "todo").unwrap();
+        let session = create(&conn, &ws, None, "Spike research", "research", "todo", None).unwrap();
         assert_eq!(session.workspace_id, ws);
         assert_eq!(session.project_id, None);
         assert_eq!(session.title, "Spike research");
@@ -202,9 +222,10 @@ mod tests {
             "In project",
             "code",
             "todo",
+            None,
         )
         .unwrap();
-        create(&conn, &ws_a, None, "Loose", "research", "todo").unwrap();
+        create(&conn, &ws_a, None, "Loose", "research", "todo", None).unwrap();
 
         assert_eq!(list(&conn, &ws_a).unwrap().len(), 2);
         assert!(list(&conn, &ws_b).unwrap().is_empty());
@@ -219,7 +240,7 @@ mod tests {
     fn status_moves_through_core_workflow() {
         let conn = migrated_conn();
         let ws = workspace_id(&conn);
-        let session = create(&conn, &ws, None, "Implement feature", "code", "todo").unwrap();
+        let session = create(&conn, &ws, None, "Implement feature", "code", "todo", None).unwrap();
 
         for status in ["running", "needs-review", "done"] {
             let moved = update_status(&conn, &session.id, status)
@@ -235,7 +256,7 @@ mod tests {
     fn update_changes_title_and_summary() {
         let conn = migrated_conn();
         let ws = workspace_id(&conn);
-        let session = create(&conn, &ws, None, "Original", "document", "todo").unwrap();
+        let session = create(&conn, &ws, None, "Original", "document", "todo", None).unwrap();
 
         let updated = update(&conn, &session.id, "Renamed", Some("Wrote the spec"))
             .unwrap()
@@ -251,7 +272,8 @@ mod tests {
         let conn = migrated_conn();
         let ws = workspace_id(&conn);
         let project = project::create(&conn, &ws, "P", "code").unwrap();
-        let session = create(&conn, &ws, Some(&project.id), "Attached", "code", "todo").unwrap();
+        let session =
+            create(&conn, &ws, Some(&project.id), "Attached", "code", "todo", None).unwrap();
 
         project::delete(&conn, &project.id).unwrap();
         let detached = get(&conn, &session.id).unwrap().expect("session survives");
@@ -262,9 +284,30 @@ mod tests {
     fn deleting_workspace_cascades_to_sessions() {
         let conn = migrated_conn();
         let ws = workspace_id(&conn);
-        let session = create(&conn, &ws, None, "Doomed", "terminal", "todo").unwrap();
+        let session = create(&conn, &ws, None, "Doomed", "terminal", "todo", None).unwrap();
 
         workspace::delete(&conn, &ws).unwrap();
         assert!(get(&conn, &session.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn artifact_link_round_trips_and_lists() {
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "WS", "mixed").unwrap().id;
+        let art = crate::models::artifact::create(&conn, &ws, None, "Spec").unwrap();
+        let s = create(&conn, &ws, None, "Task A", "code", "todo", Some(&art.id)).unwrap();
+        assert_eq!(s.created_from_artifact_id.as_deref(), Some(art.id.as_str()));
+        assert_eq!(list_by_artifact(&conn, &ws, &art.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn deleting_artifact_detaches_sessions() {
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "WS", "mixed").unwrap().id;
+        let art = crate::models::artifact::create(&conn, &ws, None, "Spec").unwrap();
+        let s = create(&conn, &ws, None, "Task", "code", "todo", Some(&art.id)).unwrap();
+        crate::models::artifact::delete(&conn, &art.id).unwrap();
+        let after = get(&conn, &s.id).unwrap().expect("session survives");
+        assert_eq!(after.created_from_artifact_id, None); // ON DELETE SET NULL
     }
 }

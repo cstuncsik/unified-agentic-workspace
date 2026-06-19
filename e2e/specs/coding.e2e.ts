@@ -123,7 +123,7 @@ describe("coding workspaces", () => {
     );
 
     await row.$("button*=Discard").click();
-    const dialog = await $(".re-dialog");
+    const dialog = await $('[data-testid="confirm-dialog"]');
     await dialog.waitForDisplayed({ timeout: 5_000 });
     await dialog.$("button*=Discard").click();
     await browser.waitUntil(async () => (await $$('[data-testid="coding-row"]').length) === 0, {

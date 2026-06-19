@@ -92,6 +92,7 @@ pub fn create_session(
         title,
         &mode,
         &status,
+        None,
     )
     .map_err(|e| e.to_string())
 }
