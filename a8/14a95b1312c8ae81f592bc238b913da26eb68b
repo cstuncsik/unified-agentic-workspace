@@ -1,0 +1,21 @@
+src/utils/markdown.ts
+  s_b49f7388e23022::t_678d6dd07bc946 1-24
+package.json
+  s_b49f7388e23022::t_5bbf2807682e43 26-27,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "a814a95b1312c8ae81f592bc238b913da26eb68b",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
