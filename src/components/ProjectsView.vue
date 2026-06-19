@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useWorkspacesStore } from "../stores/workspaces";
 import { useProjectsStore } from "../stores/projects";
 import { useSessionsStore } from "../stores/sessions";
+import { useArtifactsStore } from "../stores/artifacts";
 import { PROJECT_MODES, type Project, type ProjectMode } from "../types/project";
 import { useToast } from "../composables/useToast";
 import { useConfirm } from "../composables/useConfirm";
@@ -10,6 +11,7 @@ import { useConfirm } from "../composables/useConfirm";
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
 const sessions = useSessionsStore();
+const artifacts = useArtifactsStore();
 const toast = useToast();
 const { confirm } = useConfirm();
 
@@ -85,6 +87,7 @@ async function removeProject(id: string, name: string) {
   try {
     await projects.remove(id);
     sessions.detachProject(id);
+    artifacts.detachProject(id);
     if (editingId.value === id) cancelRename();
     toast.success("Project deleted");
   } catch (e) {

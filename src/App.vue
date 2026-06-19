@@ -6,6 +6,7 @@ import { useSessionsStore } from "./stores/sessions";
 import { useRepositoriesStore } from "./stores/repositories";
 import { useCodingWorkspacesStore } from "./stores/codingWorkspaces";
 import { useReviewsStore } from "./stores/reviews";
+import { useArtifactsStore } from "./stores/artifacts";
 import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
@@ -14,6 +15,7 @@ import SourcesView from "./components/SourcesView.vue";
 import CodingView from "./components/CodingView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
 import AgentsView from "./components/AgentsView.vue";
+import ArtifactsView from "./components/ArtifactsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 
@@ -23,8 +25,9 @@ const sessions = useSessionsStore();
 const repositories = useRepositoriesStore();
 const coding = useCodingWorkspacesStore();
 const reviews = useReviewsStore();
+const artifacts = useArtifactsStore();
 
-type ActiveView = "inbox" | "projects" | "sources" | "coding" | "reviews" | "agents";
+type ActiveView = "inbox" | "projects" | "artifacts" | "sources" | "coding" | "reviews" | "agents";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
@@ -44,6 +47,7 @@ watch(
   (workspaceId) => {
     if (workspaceId) {
       projects.load(workspaceId);
+      artifacts.load(workspaceId);
       sessions.load(workspaceId);
       repositories.load(workspaceId);
       coding.load(workspaceId);
@@ -95,6 +99,16 @@ watch(
           @click="activeView = 'projects'"
         >
           Projects
+        </button>
+
+        <button
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'artifacts' ? 'page' : undefined"
+          type="button"
+          @click="activeView = 'artifacts'"
+        >
+          Artifacts
         </button>
 
         <button
@@ -164,6 +178,7 @@ watch(
         </header>
         <SessionsView v-if="activeView === 'inbox'" />
         <ProjectsView v-else-if="activeView === 'projects'" />
+        <ArtifactsView v-else-if="activeView === 'artifacts'" />
         <SourcesView v-else-if="activeView === 'sources'" />
         <CodingView v-else-if="activeView === 'coding'" />
         <ReviewsView v-else-if="activeView === 'reviews'" />
