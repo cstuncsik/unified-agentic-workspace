@@ -1,0 +1,23 @@
+docs/superpowers/plans/2026-06-19-agent-account-injection.md
+  s_b49f7388e23022::t_8ef1c4cd838708 582,585
+  s_b49f7388e23022::t_57383d66b86652 385
+  s_b49f7388e23022::t_3fb6cacb670a03 1-338,347-384,386-468,470-581,583-584,586-1035
+  s_b49f7388e23022::t_e73d33d77de5a1 339-346
+  s_b49f7388e23022::t_f013602aa2591a 469
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "58d1452ccc96936cb53d286022a735c51051b663",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
