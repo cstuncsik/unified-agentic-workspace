@@ -1,0 +1,19 @@
+e2e/specs/dispatch.e2e.ts
+  s_b49f7388e23022::t_0e283667ae3855 39-41,45,57-58,60-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "77e3a8baba5b578d01c2c5609cd6f42df7f8aec7",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
