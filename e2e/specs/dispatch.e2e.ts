@@ -39,9 +39,18 @@ describe("dispatch artifact to coding tasks", () => {
     // Two checklist tasks. Wait for the edit to register (dirty appears), Save,
     // then wait for it to PERSIST before dispatching — extract_artifact_tasks reads
     // the artifact from the DB, so dispatching before the update lands seeds empty.
-    await (
-      await $('[aria-label="Markdown source"]')
-    ).setValue("# Plan\n\n- [ ] Dispatch one\n- [ ] Dispatch two\n");
+    // Set the value via the DOM (with real newlines + an input event for v-model):
+    // wdio setValue treats "\n" as Enter and can collapse the lines, which would
+    // leave the checklist items mid-line and unparseable by extract_tasks.
+    await browser.execute((val) => {
+      const ta = document.querySelector(
+        '[aria-label="Markdown source"]',
+      ) as HTMLTextAreaElement | null;
+      if (ta) {
+        ta.value = val;
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }, "# Plan\n\n- [ ] Dispatch one\n- [ ] Dispatch two\n");
     await (await $('[data-testid="artifact-dirty"]')).waitForExist({ timeout: 5_000 });
     const editor = await $('[data-testid="artifact-editor"]');
     await editor.$("button*=Save").click();
