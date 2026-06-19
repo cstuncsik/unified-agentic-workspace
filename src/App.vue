@@ -15,6 +15,7 @@ import SourcesView from "./components/SourcesView.vue";
 import CodingView from "./components/CodingView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
 import AgentsView from "./components/AgentsView.vue";
+import BoardView from "./components/BoardView.vue";
 import ArtifactsView from "./components/ArtifactsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
@@ -27,7 +28,15 @@ const coding = useCodingWorkspacesStore();
 const reviews = useReviewsStore();
 const artifacts = useArtifactsStore();
 
-type ActiveView = "inbox" | "projects" | "artifacts" | "sources" | "coding" | "reviews" | "agents";
+type ActiveView =
+  | "inbox"
+  | "projects"
+  | "artifacts"
+  | "sources"
+  | "coding"
+  | "reviews"
+  | "board"
+  | "agents";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
@@ -144,6 +153,16 @@ watch(
         <button
           class="re-button"
           data-variant="ghost"
+          :aria-current="activeView === 'board' ? 'page' : undefined"
+          type="button"
+          @click="activeView = 'board'"
+        >
+          Board
+        </button>
+
+        <button
+          class="re-button"
+          data-variant="ghost"
           :aria-current="activeView === 'agents' ? 'page' : undefined"
           type="button"
           @click="activeView = 'agents'"
@@ -182,6 +201,7 @@ watch(
         <SourcesView v-else-if="activeView === 'sources'" />
         <CodingView v-else-if="activeView === 'coding'" />
         <ReviewsView v-else-if="activeView === 'reviews'" />
+        <BoardView v-else-if="activeView === 'board'" />
         <AgentsView v-else-if="activeView === 'agents'" />
       </template>
       <p v-else class="muted">No workspace selected.</p>

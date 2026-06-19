@@ -38,6 +38,14 @@ git -C /tmp/fixture-repo-dispatch add . >/dev/null
 git -C /tmp/fixture-repo-dispatch -c user.email=e2e@uaw.local -c user.name="UAW E2E" \
   commit -m init >/dev/null
 
+# Isolated fixture repo for the board spec (its own branches, no cross-spec collisions).
+rm -rf /tmp/fixture-repo-board
+git init -b main /tmp/fixture-repo-board >/dev/null
+echo "# board fixture" >/tmp/fixture-repo-board/README.md
+git -C /tmp/fixture-repo-board add . >/dev/null
+git -C /tmp/fixture-repo-board -c user.email=e2e@uaw.local -c user.name="UAW E2E" \
+  commit -m init >/dev/null
+
 # A fake interactive "agent CLI" for the agent-terminal e2e: prints a banner then
 # echoes stdin, so the PTY/xterm round-trip can be asserted without a real claude.
 cat >/tmp/uaw-fake-agent <<'AGENT'

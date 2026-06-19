@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useReviewsStore } from "../stores/reviews";
 import { useToast } from "../composables/useToast";
 import { REVIEW_ACTIONS } from "../types/review";
+import { reviewTone } from "../utils/reviewTone";
 
 const reviews = useReviewsStore();
 const toast = useToast();
@@ -19,13 +20,6 @@ const ordered = computed(() =>
 );
 
 const selected = computed(() => reviews.list.find((r) => r.id === selectedId.value) ?? null);
-
-function badgeVariant(status: string): string | undefined {
-  if (status === "approved" || status === "done") return "success";
-  if (status === "rejected") return "danger";
-  if (status === "changes-requested") return "warning";
-  return "info"; // pending
-}
 
 async function setStatus(id: string, status: string) {
   try {
@@ -64,14 +58,14 @@ async function setStatus(id: string, status: string) {
           @click="selectedId = r.id"
         >
           <span class="review__summary">{{ r.summary }}</span>
-          <span class="re-badge" :data-tone="badgeVariant(r.status)">{{ r.status }}</span>
+          <span class="re-badge" :data-tone="reviewTone(r.status)">{{ r.status }}</span>
         </li>
       </ul>
 
       <div v-if="selected" class="detail re-card" data-testid="review-detail">
         <header class="detail__head">
           <span class="detail__summary">{{ selected.summary }}</span>
-          <span class="re-badge" :data-tone="badgeVariant(selected.status)">
+          <span class="re-badge" :data-tone="reviewTone(selected.status)">
             {{ selected.status }}
           </span>
         </header>

@@ -84,6 +84,7 @@ pub fn run() {
             commands::dispatch::extract_artifact_tasks,
             commands::dispatch::list_artifact_sessions,
             commands::dispatch::dispatch_artifact,
+            commands::board::get_board,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
