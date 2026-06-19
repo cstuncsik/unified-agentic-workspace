@@ -1,0 +1,25 @@
+src-tauri/src/services/keystore/mod.rs
+  s_b49f7388e23022::t_e404ed8c1bce6e 30-33
+src-tauri/src/lib.rs
+  s_b49f7388e23022::t_fe1a59c152b485 42-44
+src-tauri/src/commands/mod.rs
+  s_b49f7388e23022::t_0d1fedc2d290dc 7
+src-tauri/src/commands/provider_accounts.rs
+  s_b49f7388e23022::t_697800957baa0c 1-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "9dbad282f627d2d66d7406f35fb976778ef28d7f",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
