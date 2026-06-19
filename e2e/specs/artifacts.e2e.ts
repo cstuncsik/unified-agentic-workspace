@@ -87,7 +87,10 @@ describe("markdown artifacts", () => {
 
   it("deletes an artifact", async () => {
     const before = await $$('[data-testid="artifact-row"]').length;
-    await (await $('[data-testid="artifact-editor"] button*=Delete')).click();
+    // Scope the lookup to the editor element — a combined `[attr] button*=Text`
+    // string is not a valid wdio selector.
+    const editor = await $('[data-testid="artifact-editor"]');
+    await editor.$("button*=Delete").click();
     const dialog = await $(".re-dialog");
     await dialog.waitForDisplayed({ timeout: 5_000 });
     await dialog.$("button*=Delete").click();
@@ -96,6 +99,45 @@ describe("markdown artifacts", () => {
       {
         timeout: 10_000,
         timeoutMsg: "expected one fewer artifact row after delete",
+      },
+    );
+  });
+
+  it("detaches the project badge from artifacts when the project is deleted", async () => {
+    // Create a project to scope an artifact to.
+    await (await $("button*=Projects")).click();
+    await (await $('[aria-label="New project name"]')).setValue("Detachable");
+    await (await $("button*=Create")).click();
+    await (await $('[data-testid="project-row"]')).waitForExist({ timeout: 10_000 });
+
+    // Create a project-scoped artifact; its row shows the project badge.
+    await (await $("button*=Artifacts")).click();
+    await (await $('[aria-label="New artifact title"]')).setValue("Scoped doc");
+    await (await $('[aria-label="Artifact project"]')).selectByVisibleText("Detachable");
+    await (await $("button*=Create")).click();
+    await browser.waitUntil(
+      async () => (await $$('[data-testid="artifact-row"] .re-badge').length) >= 1,
+      {
+        timeout: 10_000,
+        timeoutMsg: "expected the scoped artifact to show a project badge",
+      },
+    );
+
+    // Delete the project (it is the only one in this spec's workspace).
+    await (await $("button*=Projects")).click();
+    const projectRow = await $('[data-testid="project-row"]');
+    await projectRow.$("button*=Delete").click();
+    const dialog = await $(".re-dialog");
+    await dialog.waitForDisplayed({ timeout: 5_000 });
+    await dialog.$("button*=Delete").click();
+
+    // Back in Artifacts the badge is gone (SET NULL surfaced live via detachProject).
+    await (await $("button*=Artifacts")).click();
+    await browser.waitUntil(
+      async () => (await $$('[data-testid="artifact-row"] .re-badge').length) === 0,
+      {
+        timeout: 10_000,
+        timeoutMsg: "expected the project badge to disappear after the project is deleted",
       },
     );
   });
