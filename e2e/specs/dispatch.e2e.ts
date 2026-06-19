@@ -36,15 +36,15 @@ describe("dispatch artifact to coding tasks", () => {
     await (await $("button*=Create")).click();
     await (await $('[data-testid="artifact-editor"]')).waitForExist({ timeout: 10_000 });
 
-    // Two checklist tasks.
+    // Two checklist tasks. Wait for the edit to register (dirty appears), Save,
+    // then wait for it to PERSIST before dispatching — extract_artifact_tasks reads
+    // the artifact from the DB, so dispatching before the update lands seeds empty.
     await (
       await $('[aria-label="Markdown source"]')
     ).setValue("# Plan\n\n- [ ] Dispatch one\n- [ ] Dispatch two\n");
+    await (await $('[data-testid="artifact-dirty"]')).waitForExist({ timeout: 5_000 });
     const editor = await $('[data-testid="artifact-editor"]');
     await editor.$("button*=Save").click();
-    // Wait for the save to PERSIST before dispatching — extract_artifact_tasks
-    // reads the artifact from the DB, so dispatching before the async update lands
-    // would seed from empty content.
     await browser.waitUntil(async () => !(await $('[data-testid="artifact-dirty"]').isExisting()), {
       timeout: 10_000,
       timeoutMsg: "expected the artifact save to persist",
@@ -54,13 +54,16 @@ describe("dispatch artifact to coding tasks", () => {
     await editor.$("button*=Dispatch").click();
     const dialog = await $('[data-testid="dispatch-dialog"]');
     await dialog.waitForDisplayed({ timeout: 5_000 });
-    await browser.waitUntil(
-      async () => (await $$('[data-testid="dispatch-task-row"]').length) === 2,
-      {
+    await browser
+      .waitUntil(async () => (await $$('[data-testid="dispatch-task-row"]').length) === 2, {
         timeout: 10_000,
-        timeoutMsg: "expected two seeded task rows",
-      },
-    );
+        timeoutMsg: "two seeded task rows",
+      })
+      .catch(async () => {
+        const body = await textOf('[data-testid="dispatch-dialog"]');
+        const n = await $$('[data-testid="dispatch-task-row"]').length;
+        throw new Error(`expected 2 task rows, got ${n}. dialog body: ${body.slice(0, 400)}`);
+      });
 
     // Pick project/repo/base.
     await dialog.$('[aria-label="Dispatch project"]').selectByVisibleText("DispProj");
