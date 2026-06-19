@@ -1,0 +1,25 @@
+src-tauri/src/services/dispatch.rs
+  s_b49f7388e23022::t_3bcc8c3ac68810 34-36
+  s_b49f7388e23022::t_f0fce1e6220505 62
+src/composables/useRepositoryBranches.ts
+  s_b49f7388e23022::t_9ef5f3e12c27b7 27-31
+e2e/specs/dispatch.e2e.ts
+  s_b49f7388e23022::t_ef9909abb11223 88-123,128-136
+  s_b49f7388e23022::t_320f94e5ec9fa8 124-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "11700fcf8d1fef939ce7357d6a6f63dc0ef79280",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
