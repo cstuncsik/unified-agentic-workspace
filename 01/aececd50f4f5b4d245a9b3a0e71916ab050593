@@ -1,0 +1,27 @@
+e2e/specs/artifacts.e2e.ts
+  s_b49f7388e23022::t_2e97696d8f3da3 72,94,130
+e2e/specs/sources.e2e.ts
+  s_b49f7388e23022::t_2e97696d8f3da3 53
+e2e/specs/dispatch.e2e.ts
+  s_b49f7388e23022::t_b968e339ff1125 45-51
+src/components/ConfirmDialog.vue
+  s_b49f7388e23022::t_a4292921874124 22
+e2e/specs/coding.e2e.ts
+  s_b49f7388e23022::t_2e97696d8f3da3 126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "01aececd50f4f5b4d245a9b3a0e71916ab050593",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
