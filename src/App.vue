@@ -13,6 +13,7 @@ import ProjectsView from "./components/ProjectsView.vue";
 import SourcesView from "./components/SourcesView.vue";
 import CodingView from "./components/CodingView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
+import AgentsView from "./components/AgentsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 
@@ -23,7 +24,7 @@ const repositories = useRepositoriesStore();
 const coding = useCodingWorkspacesStore();
 const reviews = useReviewsStore();
 
-type ActiveView = "inbox" | "projects" | "sources" | "coding" | "reviews";
+type ActiveView = "inbox" | "projects" | "sources" | "coding" | "reviews" | "agents";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
@@ -127,6 +128,16 @@ watch(
         </button>
 
         <button
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'agents' ? 'page' : undefined"
+          type="button"
+          @click="activeView = 'agents'"
+        >
+          Agents
+        </button>
+
+        <button
           v-for="section in plannedSections"
           :key="section"
           class="re-button"
@@ -156,6 +167,7 @@ watch(
         <SourcesView v-else-if="activeView === 'sources'" />
         <CodingView v-else-if="activeView === 'coding'" />
         <ReviewsView v-else-if="activeView === 'reviews'" />
+        <AgentsView v-else-if="activeView === 'agents'" />
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>
@@ -276,6 +288,10 @@ body {
 .main {
   padding: 2rem;
   overflow: auto;
+  /* Flex column so a full-height view (e.g. the agent terminal) can fill the
+     space left under the header instead of overflowing the scroll area. */
+  display: flex;
+  flex-direction: column;
 }
 
 .main__header {

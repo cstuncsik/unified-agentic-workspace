@@ -30,6 +30,15 @@ git -C /tmp/fixture-repo add . >/dev/null
 git -C /tmp/fixture-repo -c user.email=e2e@uaw.local -c user.name="UAW E2E" \
   commit -m init >/dev/null
 
+# A fake interactive "agent CLI" for the agent-terminal e2e: prints a banner then
+# echoes stdin, so the PTY/xterm round-trip can be asserted without a real claude.
+cat >/tmp/uaw-fake-agent <<'AGENT'
+#!/usr/bin/env bash
+printf 'AGENT-READY\n'
+exec cat
+AGENT
+chmod +x /tmp/uaw-fake-agent
+
 # Invoke the wdio binary directly (skips pnpm's pre-run deps check). Not exec'd
 # so the EXIT trap still runs to stop Xvfb; set -e propagates wdio's exit code.
 node_modules/.bin/wdio run wdio.conf.ts
