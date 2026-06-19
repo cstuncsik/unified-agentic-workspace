@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection, Row};
 use serde::{Deserialize, Serialize};
 
-use crate::util::{new_id, now_rfc3339};
+use crate::util::now_rfc3339;
 
 /// Metadata for a stored provider credential. The secret itself is NOT here — it
 /// lives in the OS keychain under `keychain_ref`. This struct is the only thing
@@ -86,6 +86,7 @@ pub fn delete(conn: &Connection, id: &str) -> rusqlite::Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::new_id;
 
     // Enables PRAGMA foreign_keys = ON so cascade behavior is real (the
     // workspace.rs helper does NOT — mirror project.rs instead).

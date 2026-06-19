@@ -27,3 +27,10 @@ uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 portable-pty = "0.9"
 
+# The OS keychain backend is wired only on macOS for now (the user's platform).
+# `keyring` v3 has no default features; `apple-native` pulls only the Apple
+# Keychain backend (no secret-service/openssl/dbus). On Linux/Windows the crate
+# is not pulled at all — `OsKeyStore` is stubbed there and dev/e2e use FileKeyStore.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
