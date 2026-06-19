@@ -67,26 +67,25 @@ describe("parallel agent board", () => {
       timeout: 10_000,
       timeoutMsg: "expected board/b in In progress",
     });
+    // All three stage columns always render (even the empty one).
+    expect(await $$('[data-testid="board-column"]').length).toBe(3);
     expect(await colText("needs-review")).toContain("board/a");
 
-    // Decide the review (Request changes) → board/a should move to In progress.
+    // Decide the review (Approve) → board/a moves to the Reviewed column.
     await (await $("button*=Reviews")).click();
     await (await $('[data-testid="review-row"]')).waitForExist({ timeout: 10_000 });
     await (await $('[data-testid="review-row"]')).click();
-    await (await $('[data-testid="review-detail"] button*=Request changes')).click();
+    // Scope the action lookup to the detail element — a combined `[attr] button*=Text`
+    // string is not a valid wdio selector.
+    const detail = await $('[data-testid="review-detail"]');
+    await detail.$("button*=Approve").click();
 
     await (await $("button*=Board")).click();
     await (await $("button*=Refresh")).click();
-    await browser.waitUntil(
-      async () => {
-        const ip = await colText("in-progress");
-        return ip.includes("board/a") && ip.includes("board/b");
-      },
-      {
-        timeout: 10_000,
-        timeoutMsg: "expected board/a to move to In progress after changes requested",
-      },
-    );
+    await browser.waitUntil(async () => (await colText("reviewed")).includes("board/a"), {
+      timeout: 10_000,
+      timeoutMsg: "expected board/a to move to Reviewed after approval",
+    });
   });
 
   it("compares two reviews side-by-side", async () => {
