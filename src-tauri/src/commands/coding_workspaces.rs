@@ -43,14 +43,18 @@ pub fn get_coding_workspace(
     coding_workspace::get(&conn, &id).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-pub fn create_coding_workspace(
-    app: AppHandle,
-    state: State<'_, Mutex<Connection>>,
-    project_id: String,
-    repository_source_id: String,
-    base_branch: String,
-    branch_name: String,
+/// Validated worktree creation, the single chokepoint used by both the M7 command
+/// and dispatch. Invariants (do not drop): branch/base validated (option-injection
+/// guard); the DB lock is released before git and re-acquired for the insert; the
+/// on-disk worktree is removed if the row insert fails (no orphan).
+pub fn create_worktree_inner(
+    app: &AppHandle,
+    state: &State<'_, Mutex<Connection>>,
+    project_id: &str,
+    repository_source_id: &str,
+    base_branch: &str,
+    branch_name: &str,
+    session_id: Option<&str>,
 ) -> Result<CodingWorkspace, String> {
     let base_branch = base_branch.trim();
     let branch_name = branch_name.trim();
@@ -60,25 +64,19 @@ pub fn create_coding_workspace(
     if branch_name.is_empty() {
         return Err("Branch name cannot be empty".into());
     }
-    // A leading '-' would be parsed by `git worktree add` as an option (e.g.
-    // `--lock`), so reject it (option injection from the renderer boundary).
     if base_branch.starts_with('-') || branch_name.starts_with('-') {
         return Err("Branch names cannot start with '-'".into());
     }
 
-    // Resolve the project + repository and their shared workspace under the lock,
-    // then release it before touching git.
     let (workspace_id, repo_path) = {
         let conn = state.lock().map_err(|e| e.to_string())?;
-        let Some(project) = project::get(&conn, &project_id).map_err(|e| e.to_string())? else {
+        let Some(project) = project::get(&conn, project_id).map_err(|e| e.to_string())? else {
             return Err(format!("Project '{project_id}' does not exist"));
         };
         let Some(repo) =
-            repository::get(&conn, &repository_source_id).map_err(|e| e.to_string())?
+            repository::get(&conn, repository_source_id).map_err(|e| e.to_string())?
         else {
-            return Err(format!(
-                "Repository '{repository_source_id}' does not exist"
-            ));
+            return Err(format!("Repository '{repository_source_id}' does not exist"));
         };
         if repo.workspace_id != project.workspace_id {
             return Err("Repository and project belong to different workspaces".into());
@@ -87,37 +85,38 @@ pub fn create_coding_workspace(
     };
 
     let id = new_id();
-    let base = worktrees_base(&app)?;
+    let base = worktrees_base(app)?;
     std::fs::create_dir_all(&base).map_err(|e| format!("failed to create worktrees dir: {e}"))?;
     let worktree_path = base.join(&id);
 
-    git::create_worktree(
-        Path::new(&repo_path),
-        &worktree_path,
-        branch_name,
-        base_branch,
-    )?;
+    git::create_worktree(Path::new(&repo_path), &worktree_path, branch_name, base_branch)?;
 
     let worktree_str = worktree_path.to_string_lossy().to_string();
     let conn = state.lock().map_err(|e| e.to_string())?;
     match coding_workspace::create(
-        &conn,
-        &id,
-        &workspace_id,
-        &project_id,
-        &repository_source_id,
-        &repo_path,
-        &worktree_str,
-        branch_name,
-        base_branch,
+        &conn, &id, &workspace_id, project_id, repository_source_id, &repo_path, &worktree_str,
+        branch_name, base_branch, session_id,
     ) {
         Ok(cw) => Ok(cw),
         Err(e) => {
-            // Don't leave an orphaned worktree if the row couldn't be written.
             let _ = git::remove_worktree(Path::new(&repo_path), &worktree_path, true);
             Err(e.to_string())
         }
     }
+}
+
+#[tauri::command]
+pub fn create_coding_workspace(
+    app: AppHandle,
+    state: State<'_, Mutex<Connection>>,
+    project_id: String,
+    repository_source_id: String,
+    base_branch: String,
+    branch_name: String,
+) -> Result<CodingWorkspace, String> {
+    create_worktree_inner(
+        &app, &state, &project_id, &repository_source_id, &base_branch, &branch_name, None,
+    )
 }
 
 #[tauri::command]
@@ -256,4 +255,39 @@ pub fn complete_coding_workspace(
     .map_err(|e| e.to_string())?;
 
     Ok(review)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command as PCommand;
+
+    fn temp_git_repo() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("uaw-disp-{}", new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let run = |args: &[&str]| {
+            assert!(PCommand::new("git").arg("-C").arg(&dir).args(args).status().unwrap().success());
+        };
+        run(&["init", "-b", "main"]);
+        run(&["config", "user.email", "t@uaw.local"]);
+        run(&["config", "user.name", "T"]);
+        std::fs::write(dir.join("README.md"), "# t\n").unwrap();
+        run(&["add", "."]);
+        run(&["commit", "-m", "init"]);
+        dir
+    }
+
+    /// Directly exercise git::create_worktree + the cleanup contract: if the row
+    /// insert is bypassed/fails, the worktree must not linger. Here we create then
+    /// remove to assert the cleanup primitive the inner fn relies on.
+    #[test]
+    fn worktree_cleanup_removes_dir() {
+        let repo = temp_git_repo();
+        let wt = std::env::temp_dir().join(format!("uaw-wt-{}", new_id()));
+        git::create_worktree(&repo, &wt, "feat/cleanup", "main").unwrap();
+        assert!(wt.exists());
+        git::remove_worktree(&repo, &wt, true).unwrap();
+        assert!(!wt.exists());
+        std::fs::remove_dir_all(&repo).ok();
+    }
 }

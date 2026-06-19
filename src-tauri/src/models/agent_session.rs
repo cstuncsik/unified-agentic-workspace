@@ -138,7 +138,7 @@ mod tests {
         let cw_id = new_id();
         let cw = coding_workspace::create(
             conn, &cw_id, &ws, &p, &r, "/tmp/repo",
-            &format!("/tmp/worktrees/{cw_id}"), "feature/x", "main",
+            &format!("/tmp/worktrees/{cw_id}"), "feature/x", "main", None,
         )
         .unwrap();
         (ws, cw.id)
