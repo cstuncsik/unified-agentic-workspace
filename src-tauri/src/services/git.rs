@@ -145,6 +145,34 @@ pub struct WorktreeDiff {
     pub error: Option<String>,
 }
 
+/// Lightweight worktree health for the board: a single `git status --porcelain`
+/// (no diff), yielding clean/dirty + a changed-file count. Degrades like
+/// worktree_diff: a status error becomes `error: Some(..)`, never a panic.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct WorktreeHealth {
+    pub is_clean: bool,
+    pub changed_files: usize,
+    pub error: Option<String>,
+}
+
+pub fn worktree_health(worktree: &Path) -> WorktreeHealth {
+    match run_git(worktree, &["status", "--porcelain"]) {
+        Ok(status) => {
+            let changed_files = status.lines().filter(|l| !l.trim().is_empty()).count();
+            WorktreeHealth {
+                is_clean: changed_files == 0,
+                changed_files,
+                error: None,
+            }
+        }
+        Err(e) => WorktreeHealth {
+            is_clean: false,
+            changed_files: 0,
+            error: Some(e),
+        },
+    }
+}
+
 /// A deterministic snapshot of a worktree's changes for a review record. Unlike
 /// `WorktreeDiff` (which carries the full patch for display), this carries the
 /// aggregates the review summary and risk heuristics need: the changed-file set
@@ -519,6 +547,31 @@ mod tests {
             "deleted README should be reported in `deleted`, got {:?}",
             snap.deleted
         );
+
+        remove_worktree(&repo, &wt, true).unwrap();
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn worktree_health_reports_clean_dirty_and_errors() {
+        let repo = temp_repo();
+        let wt = std::env::temp_dir().join(format!("uaw-health-{}", crate::util::new_id()));
+        create_worktree(&repo, &wt, "feat/health", "main").unwrap();
+
+        let clean = worktree_health(&wt);
+        assert!(clean.is_clean);
+        assert_eq!(clean.changed_files, 0);
+        assert!(clean.error.is_none());
+
+        fs::write(wt.join("README.md"), "# changed\n").unwrap();
+        fs::write(wt.join("new.txt"), "x\n").unwrap();
+        let dirty = worktree_health(&wt);
+        assert!(!dirty.is_clean);
+        assert_eq!(dirty.changed_files, 2);
+
+        // A path that is not a worktree → error, not a panic.
+        let gone = worktree_health(&std::env::temp_dir().join(format!("nope-{}", crate::util::new_id())));
+        assert!(gone.error.is_some());
 
         remove_worktree(&repo, &wt, true).unwrap();
         fs::remove_dir_all(&repo).ok();
