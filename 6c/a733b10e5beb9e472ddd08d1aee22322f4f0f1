@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-06-19-artifacts-design.md
+  s_b49f7388e23022::t_7789d333bf1e79 1-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "6ca733b10e5beb9e472ddd08d1aee22322f4f0f1",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
