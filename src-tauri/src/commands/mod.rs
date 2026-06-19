@@ -1,4 +1,5 @@
 pub mod agent_sessions;
+pub mod artifacts;
 pub mod coding_workspaces;
 pub mod projects;
 pub mod repositories;
