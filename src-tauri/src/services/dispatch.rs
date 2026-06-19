@@ -31,25 +31,9 @@ pub fn extract_tasks(markdown: &str) -> Vec<String> {
     }
 }
 
-/// A git-ref-safe branch slug: lowercase, any run of non-[a-z0-9] becomes a single
-/// '-', leading/trailing '-' stripped. Empty when nothing usable remains.
-pub fn slugify_branch(title: &str) -> String {
-    let mut out = String::new();
-    let mut prev_dash = false;
-    for c in title.chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-            prev_dash = false;
-        } else if !prev_dash && !out.is_empty() {
-            out.push('-');
-            prev_dash = true;
-        }
-    }
-    while out.ends_with('-') {
-        out.pop();
-    }
-    out
-}
+// Branch-name slugging lives on the frontend (src/utils/slug.ts) to seed the
+// editable dispatch rows; the backend only validates incoming branch names
+// (validate_dispatch) and lets git reject anything else per-task.
 
 #[cfg(test)]
 mod tests {
@@ -75,18 +59,9 @@ mod tests {
 
     #[test]
     fn handles_non_ascii_without_panic() {
-        // Multibyte content must not panic and slugs to ascii-safe.
+        // Multibyte content must not panic (char-safe parsing, no byte slicing).
         let md = "- [ ] Café déjà — vu\n";
         let tasks = extract_tasks(md);
         assert_eq!(tasks, vec!["Café déjà — vu"]);
-        assert_eq!(slugify_branch(&tasks[0]), "caf-d-j-vu");
-    }
-
-    #[test]
-    fn slugify_is_git_ref_safe() {
-        assert_eq!(slugify_branch("Add Auth!"), "add-auth");
-        assert_eq!(slugify_branch("  --Weird-- name  "), "weird-name");
-        assert_eq!(slugify_branch("***"), "");
-        assert_eq!(slugify_branch("Set up CI/CD"), "set-up-ci-cd");
     }
 }

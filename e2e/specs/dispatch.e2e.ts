@@ -85,4 +85,53 @@ describe("dispatch artifact to coding tasks", () => {
       timeoutMsg: "expected two dispatched worktrees in Coding",
     });
   });
+
+  it("is resilient: re-dispatch creates sessions but reports per-task worktree failures", async () => {
+    // Re-open the same artifact and dispatch again. The two branches already exist
+    // from the first dispatch, so each worktree fails — but the sessions are still
+    // created and linked, proving 'session always, worktree best-effort'.
+    await (await $("button*=Artifacts")).click();
+    await (await $('[data-testid="artifact-row"]')).waitForExist({ timeout: 10_000 });
+    await (await $$('[data-testid="artifact-row"]'))[0].click();
+
+    const editor = await $('[data-testid="artifact-editor"]');
+    await editor.$("button*=Dispatch").click();
+    const dialog = await $('[data-testid="dispatch-dialog"]');
+    await dialog.waitForDisplayed({ timeout: 5_000 });
+    await browser.waitUntil(
+      async () => (await $$('[data-testid="dispatch-task-row"]').length) === 2,
+      { timeout: 10_000, timeoutMsg: "expected the two tasks re-seeded" },
+    );
+
+    await dialog.$('[aria-label="Dispatch project"]').selectByVisibleText("DispProj");
+    await dialog.$('[aria-label="Dispatch repository"]').selectByVisibleText("DispFixture");
+    const base = await dialog.$('[aria-label="Dispatch base branch"]');
+    await browser.waitUntil(async () => base.isEnabled(), { timeout: 10_000 });
+    await base.selectByVisibleText("main");
+
+    await dialog.$("button*=Dispatch").click();
+
+    // Both worktrees fail (branch already exists) → two error result rows.
+    await browser.waitUntil(
+      async () => (await $$('[data-testid="dispatch-dialog"] .result--err').length) === 2,
+      { timeout: 20_000, timeoutMsg: "expected both re-dispatched worktrees to error" },
+    );
+    await dialog.$("button*=Close").click();
+
+    // The sessions were still created and linked: the count grew from 2 to 4.
+    await browser.waitUntil(
+      async () => (await textOf('[data-testid="dispatched-sessions"]')).includes("Dispatched: 4"),
+      {
+        timeout: 10_000,
+        timeoutMsg: "expected 4 dispatched sessions (2 + 2) despite worktree failures",
+      },
+    );
+
+    // No new worktrees were created (still 2).
+    await (await $("button*=Coding")).click();
+    await browser.waitUntil(async () => (await $$('[data-testid="coding-row"]').length) === 2, {
+      timeout: 10_000,
+      timeoutMsg: "expected still only two worktrees after the failed re-dispatch",
+    });
+  });
 });

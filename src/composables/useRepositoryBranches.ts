@@ -24,6 +24,11 @@ export function useRepositoryBranches() {
       const repo = repositories.list.find((r) => r.id === repoId);
       baseBranch.value =
         repo && result.includes(repo.default_branch) ? repo.default_branch : (result[0] ?? "");
+    } catch (e) {
+      // Swallow errors from a superseded fetch (a newer selectRepo started);
+      // surface only the current one to the caller (which toasts it).
+      if (t !== token) return;
+      throw e;
     } finally {
       if (t === token) loading.value = false;
     }
