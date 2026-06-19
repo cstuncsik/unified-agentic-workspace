@@ -1,0 +1,23 @@
+src/types/artifact.ts
+  s_b49f7388e23022::t_3623119b072ab2 1-9
+src/api/artifacts.ts
+  s_b49f7388e23022::t_95956372841a32 1-26
+src/stores/artifacts.ts
+  s_b49f7388e23022::t_70efc2dbaac6d5 1-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "14c8e83f9a8ad58b75927618041f2e5232c0fcf7",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
