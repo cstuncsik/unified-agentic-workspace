@@ -139,6 +139,8 @@ pub fn start_agent_session(
             adapter.id,
             &program,
             &transcript_str,
+            None,
+            None,
         )
         .map_err(|e| e.to_string())?
     };
