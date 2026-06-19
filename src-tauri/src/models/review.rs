@@ -62,6 +62,24 @@ pub fn get(conn: &Connection, id: &str) -> rusqlite::Result<Option<Review>> {
     }
 }
 
+/// The most recent review for a coding workspace, by snapshot time (created_at),
+/// breaking ties on rowid so a re-opened older review can't mask a newer one.
+pub fn latest_for_coding_workspace(
+    conn: &Connection,
+    coding_workspace_id: &str,
+) -> rusqlite::Result<Option<Review>> {
+    let sql = format!(
+        "SELECT {COLUMNS} FROM reviews WHERE coding_workspace_id = ?1
+         ORDER BY created_at DESC, rowid DESC LIMIT 1"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let mut rows = stmt.query_map(params![coding_workspace_id], from_row)?;
+    match rows.next() {
+        Some(row) => Ok(Some(row?)),
+        None => Ok(None),
+    }
+}
+
 /// Insert a review snapshot. `files`/`risk_notes` are serialized to JSON columns.
 /// The caller supplies `id` for consistency with the other models.
 #[allow(clippy::too_many_arguments)]
@@ -193,6 +211,19 @@ mod tests {
         assert_eq!(list_by_workspace(&conn, &ws).unwrap().len(), 1);
         assert!(get(&conn, &review.id).unwrap().is_some());
         assert!(get(&conn, "missing").unwrap().is_none());
+    }
+
+    #[test]
+    fn latest_for_coding_workspace_returns_most_recent() {
+        let conn = migrated_conn();
+        let (ws, cw) = fixtures(&conn);
+        assert!(latest_for_coding_workspace(&conn, &cw).unwrap().is_none());
+
+        let _first = make(&conn, &ws, &cw);
+        let second = make(&conn, &ws, &cw);
+        let latest = latest_for_coding_workspace(&conn, &cw).unwrap().expect("a review");
+        // Tiebreak on rowid → the later insert wins even if created_at matches.
+        assert_eq!(latest.id, second.id);
     }
 
     #[test]
