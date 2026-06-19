@@ -7,6 +7,7 @@ import { useRepositoriesStore } from "./stores/repositories";
 import { useCodingWorkspacesStore } from "./stores/codingWorkspaces";
 import { useReviewsStore } from "./stores/reviews";
 import { useArtifactsStore } from "./stores/artifacts";
+import { useProviderAccountsStore } from "./stores/providerAccounts";
 import { STATUS_GROUPS } from "./types/session";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.vue";
 import SessionsView from "./components/SessionsView.vue";
@@ -16,6 +17,7 @@ import CodingView from "./components/CodingView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
 import AgentsView from "./components/AgentsView.vue";
 import BoardView from "./components/BoardView.vue";
+import ProvidersView from "./components/ProvidersView.vue";
 import ArtifactsView from "./components/ArtifactsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
@@ -27,6 +29,7 @@ const repositories = useRepositoriesStore();
 const coding = useCodingWorkspacesStore();
 const reviews = useReviewsStore();
 const artifacts = useArtifactsStore();
+const providerAccounts = useProviderAccountsStore();
 
 type ActiveView =
   | "inbox"
@@ -36,7 +39,8 @@ type ActiveView =
   | "coding"
   | "reviews"
   | "board"
-  | "agents";
+  | "agents"
+  | "providers";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
@@ -61,6 +65,7 @@ watch(
       repositories.load(workspaceId);
       coding.load(workspaceId);
       reviews.load(workspaceId);
+      providerAccounts.load(workspaceId);
       sessions.setFilter(null);
     }
   },
@@ -171,6 +176,16 @@ watch(
         </button>
 
         <button
+          class="re-button"
+          data-variant="ghost"
+          :aria-current="activeView === 'providers' ? 'page' : undefined"
+          type="button"
+          @click="activeView = 'providers'"
+        >
+          Providers
+        </button>
+
+        <button
           v-for="section in plannedSections"
           :key="section"
           class="re-button"
@@ -203,6 +218,7 @@ watch(
         <ReviewsView v-else-if="activeView === 'reviews'" />
         <BoardView v-else-if="activeView === 'board'" />
         <AgentsView v-else-if="activeView === 'agents'" />
+        <ProvidersView v-else-if="activeView === 'providers'" />
       </template>
       <p v-else class="muted">No workspace selected.</p>
     </main>

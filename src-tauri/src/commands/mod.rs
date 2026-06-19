@@ -4,6 +4,7 @@ pub mod board;
 pub mod coding_workspaces;
 pub mod dispatch;
 pub mod projects;
+pub mod provider_accounts;
 pub mod repositories;
 pub mod reviews;
 pub mod sessions;

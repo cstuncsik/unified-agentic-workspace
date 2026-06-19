@@ -52,6 +52,11 @@ const MIGRATIONS: &[(i64, &str, &str)] = &[
         "session_artifact_link",
         include_str!("migrations/0009_session_artifact_link.sql"),
     ),
+    (
+        10,
+        "provider_accounts",
+        include_str!("migrations/0010_provider_accounts.sql"),
+    ),
 ];
 
 /// Open (creating if needed) the SQLite database at `db_path`, enable foreign keys,
