@@ -1,3 +1,4 @@
+pub mod artifact;
 pub mod agent_session;
 pub mod coding_workspace;
 pub mod event;
