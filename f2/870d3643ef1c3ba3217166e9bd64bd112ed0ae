@@ -1,0 +1,20 @@
+e2e/specs/artifacts.e2e.ts
+  s_b49f7388e23022::t_c59d662857ac40 90-93,105-117,125-135
+  s_b49f7388e23022::t_aeccafb56ea68e 118-124,136-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "f2870d3643ef1c3ba3217166e9bd64bd112ed0ae",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
