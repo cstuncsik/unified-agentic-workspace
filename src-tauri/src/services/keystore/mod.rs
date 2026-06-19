@@ -27,6 +27,10 @@ impl KeyStoreError {
 
 pub trait KeyStore: Send + Sync {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError>;
+    // No key-reader exists in M10b-1 (create/delete only); the M10b-2 Agent SDK
+    // adapter resolves the secret via `get` at its call site. Kept on the contract
+    // and exercised by round-trip tests.
+    #[allow(dead_code)]
     fn get(&self, key_ref: &str) -> Result<Option<String>, KeyStoreError>;
     fn delete(&self, key_ref: &str) -> Result<(), KeyStoreError>;
 }
