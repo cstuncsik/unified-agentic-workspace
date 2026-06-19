@@ -182,6 +182,12 @@ const providerLabel = (p: string) =>
   gap: 0.2rem;
 }
 
+.acct__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .acct__meta {
   font-size: 0.75rem;
   color: var(--re-color-text-muted);

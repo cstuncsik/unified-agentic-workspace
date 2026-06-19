@@ -7,23 +7,13 @@
 //! - `delete` on a missing ref returns `Ok(())` (idempotent).
 //! - `set` overwrites an existing ref (last write wins).
 
-/// Opaque keystore error. The detail is for backend diagnostics only (see
-/// `detail()`); the command layer maps any failure to a fixed, secret-free string
-/// and never forwards this to the frontend. A `keyring`/IO error never contains
-/// the secret value, only the service/account ref and a backend message.
+/// Dataless keystore error: it signals failure only, carrying nothing the command
+/// layer could accidentally surface. The underlying `keyring`/IO error is dropped
+/// at the boundary; commands map this to a fixed, secret-free string. (The backend
+/// has no logging facility — if one is added project-wide, reintroduce diagnostics
+/// here through it rather than ad-hoc printing.)
 #[derive(Debug)]
-pub enum KeyStoreError {
-    Backend(String),
-}
-
-impl KeyStoreError {
-    /// Backend diagnostic message — for logging on the backend, never the UI.
-    pub fn detail(&self) -> &str {
-        match self {
-            KeyStoreError::Backend(msg) => msg,
-        }
-    }
-}
+pub struct KeyStoreError;
 
 pub trait KeyStore: Send + Sync {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError>;
@@ -59,29 +49,24 @@ impl Default for OsKeyStore {
 #[cfg(target_os = "macos")]
 impl KeyStore for OsKeyStore {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError> {
-        let entry = keyring::Entry::new(SERVICE, key_ref)
-            .map_err(|e| KeyStoreError::Backend(e.to_string()))?;
-        entry
-            .set_password(secret)
-            .map_err(|e| KeyStoreError::Backend(e.to_string()))
+        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
+        entry.set_password(secret).map_err(|_| KeyStoreError)
     }
 
     fn get(&self, key_ref: &str) -> Result<Option<String>, KeyStoreError> {
-        let entry = keyring::Entry::new(SERVICE, key_ref)
-            .map_err(|e| KeyStoreError::Backend(e.to_string()))?;
+        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
         match entry.get_password() {
             Ok(s) => Ok(Some(s)),
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(KeyStoreError::Backend(e.to_string())),
+            Err(_) => Err(KeyStoreError),
         }
     }
 
     fn delete(&self, key_ref: &str) -> Result<(), KeyStoreError> {
-        let entry = keyring::Entry::new(SERVICE, key_ref)
-            .map_err(|e| KeyStoreError::Backend(e.to_string()))?;
+        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
         match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(KeyStoreError::Backend(e.to_string())),
+            Err(_) => Err(KeyStoreError),
         }
     }
 }
@@ -109,19 +94,13 @@ impl Default for OsKeyStore {
 #[cfg(not(target_os = "macos"))]
 impl KeyStore for OsKeyStore {
     fn set(&self, _key_ref: &str, _secret: &str) -> Result<(), KeyStoreError> {
-        Err(KeyStoreError::Backend(
-            "OS keychain not available on this platform".into(),
-        ))
+        Err(KeyStoreError)
     }
     fn get(&self, _key_ref: &str) -> Result<Option<String>, KeyStoreError> {
-        Err(KeyStoreError::Backend(
-            "OS keychain not available on this platform".into(),
-        ))
+        Err(KeyStoreError)
     }
     fn delete(&self, _key_ref: &str) -> Result<(), KeyStoreError> {
-        Err(KeyStoreError::Backend(
-            "OS keychain not available on this platform".into(),
-        ))
+        Err(KeyStoreError)
     }
 }
 
@@ -144,20 +123,25 @@ impl FileKeyStore {
         // key_ref is a generated UUID (safe filename); store one file per ref.
         self.dir.join(key_ref)
     }
+
+    /// Backing directory — tests assert on the files it holds (e.g. rollback).
+    #[cfg(test)]
+    pub fn dir(&self) -> &std::path::Path {
+        &self.dir
+    }
 }
 
 #[cfg(debug_assertions)]
 impl KeyStore for FileKeyStore {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError> {
-        std::fs::write(self.path(key_ref), secret)
-            .map_err(|e| KeyStoreError::Backend(e.to_string()))
+        std::fs::write(self.path(key_ref), secret).map_err(|_| KeyStoreError)
     }
 
     fn get(&self, key_ref: &str) -> Result<Option<String>, KeyStoreError> {
         match std::fs::read_to_string(self.path(key_ref)) {
             Ok(s) => Ok(Some(s)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(KeyStoreError::Backend(e.to_string())),
+            Err(_) => Err(KeyStoreError),
         }
     }
 
@@ -165,7 +149,7 @@ impl KeyStore for FileKeyStore {
         match std::fs::remove_file(self.path(key_ref)) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(KeyStoreError::Backend(e.to_string())),
+            Err(_) => Err(KeyStoreError),
         }
     }
 }

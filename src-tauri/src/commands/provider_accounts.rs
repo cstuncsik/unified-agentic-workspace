@@ -44,10 +44,9 @@ pub fn create_provider_account_inner(
     let id = new_id();
     let keychain_ref = id.clone();
 
-    // 3. Store the secret. Log the backend detail to stderr (never the secret,
-    //    never the UI); return a fixed opaque message.
-    if let Err(e) = store.set(&keychain_ref, api_key) {
-        eprintln!("keystore set failed: {}", e.detail());
+    // 3. Store the secret. Drop the backend error (it carries nothing) and return
+    //    a fixed opaque message.
+    if store.set(&keychain_ref, api_key).is_err() {
         return Err("Failed to store key".into());
     }
 
@@ -107,8 +106,7 @@ pub fn delete_provider_account_inner(
 ) -> Result<bool, String> {
     if let Some(account) = provider_account::get(conn, id).map_err(|_| "Failed to delete account")? {
         // Idempotent: a missing keychain entry is success.
-        if let Err(e) = store.delete(&account.keychain_ref) {
-            eprintln!("keystore delete failed: {}", e.detail());
+        if store.delete(&account.keychain_ref).is_err() {
             return Err("Failed to delete account".into());
         }
     }
@@ -125,23 +123,49 @@ pub fn delete_provider_account(
     delete_provider_account_inner(&conn, store.as_ref(), &id)
 }
 
-/// Best-effort: delete every stored key for a workspace's accounts BEFORE the
-/// rows are removed (by cascade), so a `keychain_ref` is never stranded. `delete`
-/// is idempotent so re-runs are safe.
-pub fn cleanup_workspace_keys(conn: &Connection, store: &dyn KeyStore, workspace_id: &str) {
-    if let Ok(accounts) = provider_account::list_by_workspace(conn, workspace_id) {
-        for account in accounts {
-            let _ = store.delete(&account.keychain_ref);
-        }
+/// Keychain refs for every provider account in a workspace. Read under the
+/// connection lock; the caller then deletes the entries (see
+/// `delete_keychain_entries`) WITHOUT holding the lock across keychain IO.
+pub fn workspace_keychain_refs(
+    conn: &Connection,
+    workspace_id: &str,
+) -> rusqlite::Result<Vec<String>> {
+    Ok(provider_account::list_by_workspace(conn, workspace_id)?
+        .into_iter()
+        .map(|a| a.keychain_ref)
+        .collect())
+}
+
+/// Delete a set of keychain entries (no DB connection, no lock). `delete` is
+/// idempotent (missing entry = success), so re-runs are safe. Best-effort: a
+/// single backend failure does not abort the rest.
+pub fn delete_keychain_entries(store: &dyn KeyStore, refs: &[String]) {
+    for r in refs {
+        let _ = store.delete(r);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::keystore::FileKeyStore;
+    use crate::services::keystore::{FileKeyStore, KeyStoreError};
 
     const SENTINEL: &str = "SENTINEL_SECRET_123";
+
+    // A keystore whose `set` always fails — drives the "Failed to store key" branch
+    // (the one place a secret has been handed to the backend).
+    struct FailingSetStore;
+    impl KeyStore for FailingSetStore {
+        fn set(&self, _r: &str, _s: &str) -> Result<(), KeyStoreError> {
+            Err(KeyStoreError)
+        }
+        fn get(&self, _r: &str) -> Result<Option<String>, KeyStoreError> {
+            Ok(None)
+        }
+        fn delete(&self, _r: &str) -> Result<(), KeyStoreError> {
+            Ok(())
+        }
+    }
 
     fn migrated_conn() -> Connection {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
@@ -178,11 +202,62 @@ mod tests {
             store.get(&acct.keychain_ref).unwrap(),
             Some(SENTINEL.to_string())
         );
-        // ...and the serialized account never contains it.
+        // ...and the serialized account contains ONLY the known metadata fields
+        // (catches any future key-bearing field regardless of its name) and never
+        // the sentinel.
         let json = serde_json::to_string(&acct).unwrap();
         assert!(!json.contains(SENTINEL));
-        assert!(!json.to_lowercase().contains("api_key"));
-        assert!(!json.to_lowercase().contains("\"key\""));
+        let value: serde_json::Value = serde_json::to_value(&acct).unwrap();
+        let keys: std::collections::BTreeSet<String> =
+            value.as_object().unwrap().keys().cloned().collect();
+        let expected: std::collections::BTreeSet<String> = [
+            "id",
+            "workspace_id",
+            "provider",
+            "auth_mode",
+            "display_name",
+            "keychain_ref",
+            "created_at",
+            "updated_at",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        assert_eq!(keys, expected);
+    }
+
+    #[test]
+    fn store_set_failure_maps_to_fixed_string_and_writes_nothing() {
+        let conn = migrated_conn();
+        let ws = make_ws(&conn);
+        let err =
+            create_provider_account_inner(&conn, &FailingSetStore, &ws, "anthropic", "n", SENTINEL)
+                .unwrap_err();
+        assert_eq!(err, "Failed to store key");
+        assert!(!err.contains(SENTINEL));
+        // No row was written when the keystore rejected the secret.
+        assert!(provider_account::list_by_workspace(&conn, &ws)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn insert_failure_rolls_back_keychain() {
+        let conn = migrated_conn();
+        let store = temp_store();
+        let ws = make_ws(&conn);
+        // Force the INSERT to fail AFTER store.set succeeded: drop the table.
+        // (workspaces still exists, so the workspace-existence check passes.)
+        conn.execute_batch("DROP TABLE provider_accounts;").unwrap();
+        let err =
+            create_provider_account_inner(&conn, &store, &ws, "anthropic", "n", SENTINEL)
+                .unwrap_err();
+        assert_eq!(err, "Failed to save account");
+        assert!(!err.contains(SENTINEL));
+        // The keychain entry set before the failed insert must have been rolled
+        // back — the backing dir holds no files. (keychain_ref is unknowable here.)
+        let remaining = std::fs::read_dir(store.dir()).map(|d| d.count()).unwrap_or(0);
+        assert_eq!(remaining, 0, "keychain entry was not rolled back");
     }
 
     #[test]
@@ -262,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn workspace_cleanup_removes_all_account_keys() {
+    fn workspace_delete_path_removes_keys_and_rows() {
         let conn = migrated_conn();
         let store = temp_store();
         let ws = make_ws(&conn);
@@ -271,9 +346,19 @@ mod tests {
         let b =
             create_provider_account_inner(&conn, &store, &ws, "openai", "B", SENTINEL).unwrap();
 
-        super::cleanup_workspace_keys(&conn, &store, &ws);
+        // Mirror delete_workspace's real ordering: collect refs (under the lock),
+        // delete keychain entries (outside the lock), THEN cascade-delete the rows.
+        let refs = super::workspace_keychain_refs(&conn, &ws).unwrap();
+        assert_eq!(refs.len(), 2);
+        super::delete_keychain_entries(&store, &refs);
+        crate::models::workspace::delete(&conn, &ws).unwrap();
 
+        // Keys gone...
         assert_eq!(store.get(&a.keychain_ref).unwrap(), None);
         assert_eq!(store.get(&b.keychain_ref).unwrap(), None);
+        // ...AND rows gone (the cascade ran after the keychain pass).
+        assert!(provider_account::list_by_workspace(&conn, &ws)
+            .unwrap()
+            .is_empty());
     }
 }

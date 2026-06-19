@@ -17,22 +17,24 @@ describe("provider accounts", () => {
   it("adds an account and lists it without exposing the key", async () => {
     await (await $("button*=Providers")).click();
 
-    await (await $('[aria-label="Provider"]')).selectByAttribute("value", "anthropic");
-    await (await $('[aria-label="Account display name"]')).setValue("My Anthropic");
-    await (await $('[aria-label="API key"]')).setValue("sk-ant-e2e-SECRET-key");
+    // Select OpenAI (not the default) so the select interaction + providerLabel
+    // mapping are actually exercised.
+    await (await $('[aria-label="Provider"]')).selectByAttribute("value", "openai");
+    await (await $('[aria-label="Account display name"]')).setValue("My OpenAI");
+    await (await $('[aria-label="API key"]')).setValue("sk-openai-e2e-SECRET-key");
     await (await $("button*=Add account")).click();
 
     const row = await $('[data-testid="provider-row"]');
     await row.waitForExist({ timeout: 10_000 });
     await browser.waitUntil(
-      async () => (await textOf('[data-testid="provider-row"]')).includes("My Anthropic"),
+      async () => (await textOf('[data-testid="provider-row"]')).includes("My OpenAI"),
       { timeout: 10_000, timeoutMsg: "expected the account row to show its name" },
     );
 
     // The raw key must never be rendered anywhere in the list.
     const rowText = await textOf('[data-testid="provider-row"]');
-    expect(rowText).not.toContain("sk-ant-e2e-SECRET-key");
-    expect(rowText).toContain("Anthropic");
+    expect(rowText).not.toContain("sk-openai-e2e-SECRET-key");
+    expect(rowText).toContain("OpenAI");
   });
 
   it("removes the account", async () => {
