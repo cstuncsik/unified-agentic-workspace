@@ -50,7 +50,7 @@ describe("sources", () => {
     );
 
     await row.$("button*=Detach").click();
-    await $(".re-dialog").$("button*=Delete").click();
+    await $('[data-testid="confirm-dialog"]').$("button*=Delete").click();
     await browser.waitUntil(async () => (await $$('[data-testid="repository-row"]').length) === 0, {
       timeout: 10_000,
       timeoutMsg: "expected the repository row to be removed after detach",

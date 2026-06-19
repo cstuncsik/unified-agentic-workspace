@@ -42,6 +42,13 @@ describe("dispatch artifact to coding tasks", () => {
     ).setValue("# Plan\n\n- [ ] Dispatch one\n- [ ] Dispatch two\n");
     const editor = await $('[data-testid="artifact-editor"]');
     await editor.$("button*=Save").click();
+    // Wait for the save to PERSIST before dispatching — extract_artifact_tasks
+    // reads the artifact from the DB, so dispatching before the async update lands
+    // would seed from empty content.
+    await browser.waitUntil(async () => !(await $('[data-testid="artifact-dirty"]').isExisting()), {
+      timeout: 10_000,
+      timeoutMsg: "expected the artifact save to persist",
+    });
 
     // Open the dispatch dialog (tasks are seeded from the checklist).
     await editor.$("button*=Dispatch").click();
