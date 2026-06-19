@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-06-19-dispatch-design.md
+  s_b49f7388e23022::t_b4d90bec4fe889 1-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "914e91f30088b8ef83a82ae8b9beeb9a6bbbef3d",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
