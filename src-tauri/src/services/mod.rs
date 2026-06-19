@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod board;
 pub mod dispatch;
 pub mod git;
 pub mod check;
