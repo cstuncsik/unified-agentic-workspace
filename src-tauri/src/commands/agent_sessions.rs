@@ -10,13 +10,19 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use crate::models::agent_session::{self, AgentSession};
 use crate::models::provider_account::{self, ProviderAccount};
 use crate::models::{coding_workspace, event};
-use crate::services::agent::{self, pty, AgentAdapter};
+use crate::services::agent::{self, pty, sdk, AgentAdapter};
 use crate::services::keystore::{self, KeyStore};
 use crate::util::new_id;
 
-/// Registry of live PTY sessions, keyed by agent-session id.
+/// A live agent process: an interactive PTY or a headless SDK sidecar.
+pub enum AgentProc {
+    Pty(pty::PtyHandle),
+    Sdk(sdk::SdkHandle),
+}
+
+/// Registry of live sessions, keyed by agent-session id.
 #[derive(Default)]
-pub struct AgentProcesses(pub Mutex<HashMap<String, pty::PtyHandle>>);
+pub struct AgentProcesses(pub Mutex<HashMap<String, AgentProc>>);
 
 #[derive(Clone, Serialize)]
 struct AgentOutput {
@@ -164,7 +170,7 @@ pub fn start_agent_session(
             .0
             .lock()
             .map_err(|e| e.to_string())?
-            .insert(id.clone(), handle);
+            .insert(id.clone(), AgentProc::Pty(handle));
     }
 
     // Record session.started.
@@ -252,32 +258,34 @@ pub fn start_agent_session(
 pub fn write_agent_session(app: AppHandle, id: String, data: String) -> Result<(), String> {
     let procs = app.state::<AgentProcesses>();
     let mut map = procs.0.lock().map_err(|e| e.to_string())?;
-    let Some(handle) = map.get_mut(&id) else {
-        return Err("Agent session is not running".into());
-    };
-    handle
-        .writer
-        .write_all(data.as_bytes())
-        .map_err(|e| e.to_string())?;
-    handle.writer.flush().map_err(|e| e.to_string())
+    match map.get_mut(&id) {
+        Some(AgentProc::Pty(h)) => {
+            h.writer
+                .write_all(data.as_bytes())
+                .map_err(|e| e.to_string())?;
+            h.writer.flush().map_err(|e| e.to_string())
+        }
+        Some(AgentProc::Sdk(_)) => Err("This agent does not accept input".into()),
+        None => Err("Agent session is not running".into()),
+    }
 }
 
 #[tauri::command]
 pub fn resize_agent_session(app: AppHandle, id: String, cols: u16, rows: u16) -> Result<(), String> {
     let procs = app.state::<AgentProcesses>();
     let map = procs.0.lock().map_err(|e| e.to_string())?;
-    let Some(handle) = map.get(&id) else {
-        return Ok(()); // resizing a finished session is a no-op
-    };
-    handle
-        .master
-        .resize(portable_pty::PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| e.to_string())
+    match map.get(&id) {
+        Some(AgentProc::Pty(h)) => h
+            .master
+            .resize(portable_pty::PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| e.to_string()),
+        _ => Ok(()), // SDK has no terminal; a finished session is a no-op
+    }
 }
 
 #[tauri::command]
@@ -294,8 +302,12 @@ pub fn stop_agent_session(
     }
     let procs = app.state::<AgentProcesses>();
     let mut map = procs.0.lock().map_err(|e| e.to_string())?;
-    if let Some(handle) = map.get_mut(&id) {
-        let _ = handle.killer.kill();
+    match map.get_mut(&id) {
+        Some(AgentProc::Pty(h)) => {
+            let _ = h.killer.kill();
+        }
+        Some(AgentProc::Sdk(h)) => h.kill(),
+        None => {}
     }
     Ok(())
 }
