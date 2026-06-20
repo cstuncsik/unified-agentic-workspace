@@ -40,6 +40,7 @@ export interface AgentSession {
   account_id: string | null;
   model_id: string | null;
   kind: string; // "pty" | "sdk"
+  mode: string | null; // "plan" | "edit" for sdk; null for pty
   created_at: string;
   updated_at: string;
 }

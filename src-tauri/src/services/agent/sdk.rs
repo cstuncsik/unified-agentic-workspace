@@ -19,6 +19,16 @@ pub fn redact(line: &str, secret: &str) -> String {
     }
 }
 
+/// Normalize a caller-supplied mode to the sidecar contract. Unknown/None → "plan"
+/// (fail safe: never silently grant edit). Returns 'static so a caller cannot smuggle
+/// arbitrary argv into the sidecar through the mode slot.
+pub fn normalize_sdk_mode(mode: Option<&str>) -> &'static str {
+    match mode {
+        Some("edit") => "edit",
+        _ => "plan",
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SdkLine {
     /// A relayable event line (kind ∈ assistant|tool|result); `raw` is the JSON.
@@ -127,16 +137,19 @@ pub struct SdkSpawned {
     pub handle: SdkHandle,
 }
 
-/// Spawn the sidecar as a plain piped child in `cwd`, goal as argv, env injected,
-/// stdin null (the goal is argv, not stdin), stderr discarded (never relayed).
+/// Spawn the sidecar as a plain piped child in `cwd`; goal as argv[2], mode as
+/// argv[3], env injected, stdin null (the goal is argv, not stdin), stderr
+/// discarded (never relayed).
 pub fn spawn(
     program: &str,
     goal: &str,
+    mode: &str,
     cwd: &Path,
     env: &[(String, String)],
 ) -> Result<SdkSpawned, String> {
     let mut cmd = Command::new(program);
     cmd.arg(goal)
+        .arg(mode)
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -168,6 +181,16 @@ pub fn spawn(
 mod tests {
     use super::*;
     use std::io::{BufReader, Read};
+
+    #[test]
+    fn normalize_mode_fails_safe_to_plan() {
+        assert_eq!(normalize_sdk_mode(Some("edit")), "edit");
+        assert_eq!(normalize_sdk_mode(Some("plan")), "plan");
+        assert_eq!(normalize_sdk_mode(None), "plan");
+        // Fail safe: case-sensitive, and anything unrecognized is plan, never edit.
+        assert_eq!(normalize_sdk_mode(Some("EDIT")), "plan");
+        assert_eq!(normalize_sdk_mode(Some("garbage")), "plan");
+    }
 
     #[test]
     fn redact_masks_only_when_present() {
@@ -228,6 +251,7 @@ mod tests {
         let mut sp = spawn(
             "printenv",
             "UAW_SDK_PROBE", // argv (the goal slot) = the var name printenv echoes
+            "plan",          // mode slot (printenv ignores the extra unset name)
             &dir,
             &[("UAW_SDK_PROBE".into(), "INJECTED".into())],
         )
@@ -240,8 +264,19 @@ mod tests {
     }
 
     #[test]
+    fn spawn_forwards_mode_as_second_arg() {
+        let dir = std::env::temp_dir();
+        // `echo` joins its argv with spaces, so the goal + mode round-trip on stdout.
+        let mut sp = spawn("echo", "GOAL", "edit", &dir, &[]).expect("spawn echo");
+        let mut out = String::new();
+        BufReader::new(&mut sp.stdout).read_to_string(&mut out).unwrap();
+        sp.child.wait().unwrap();
+        assert_eq!(out.trim(), "GOAL edit");
+    }
+
+    #[test]
     fn spawn_missing_program_is_opaque() {
-        let err = match spawn("/no/such/sidecar-xyz", "goal", &std::env::temp_dir(), &[]) {
+        let err = match spawn("/no/such/sidecar-xyz", "goal", "plan", &std::env::temp_dir(), &[]) {
             Err(e) => e,
             Ok(_) => panic!("expected spawn to fail"),
         };

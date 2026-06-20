@@ -7,7 +7,9 @@ const KEY_VALUE = "sk-ant-e2e-SDK-SECRET";
 const REPO = "/tmp/fixture-repo-sdk";
 
 const feedText = () =>
-  browser.execute(() => document.querySelector('[data-testid="agent-sdk-feed"]')?.textContent ?? "");
+  browser.execute(
+    () => document.querySelector('[data-testid="agent-sdk-feed"]')?.textContent ?? "",
+  );
 
 /**
  * Milestone 10b-2b slice 1: a plan-only Claude Agent SDK run via a fake Node
@@ -85,6 +87,8 @@ describe("claude agent sdk (plan-only)", () => {
     const text = await feedText();
     expect(text).toContain("KEY:set");
     expect(text).not.toContain(KEY_VALUE);
+    // Plan mode never edits, so the worktree stays clean → no review affordance.
+    expect((await $$('[data-testid="sdk-review-cta"]')).length).toBe(0);
   });
 
   it("requires an account for the SDK adapter", async () => {
@@ -92,5 +96,50 @@ describe("claude agent sdk (plan-only)", () => {
     await (await $('[aria-label="Agent goal"]')).setValue("x");
     // canStart is false without an account → the launch button is disabled.
     expect(await (await $("button*=New terminal")).isEnabled()).toBe(false);
+  });
+
+  it("creates a second worktree for an edit-mode run", async () => {
+    await (await $("button*=Coding")).click();
+    await (await $('[aria-label="Coding project"]')).selectByVisibleText("SdkProj");
+    await (await $('[aria-label="Coding repository"]')).selectByVisibleText("SdkFixture");
+    const base = await $('[aria-label="Base branch"]');
+    await browser.waitUntil(async () => base.isEnabled(), { timeout: 10_000 });
+    await base.selectByVisibleText("main");
+    await (await $('[aria-label="New branch name"]')).setValue("feat/sdk-edit");
+    await (await $("button*=Create worktree")).click();
+    await browser.waitUntil(async () => (await $$('[data-testid="coding-row"]').length) >= 2, {
+      timeout: 15_000,
+      timeoutMsg: "expected a second worktree row",
+    });
+  });
+
+  it("edit mode changes the worktree and offers a review that persists", async () => {
+    await (await $("button*=Agents")).click();
+    await (await $('[aria-label="Agent worktree"]')).selectByVisibleText("feat/sdk-edit");
+    await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Agent SDK");
+    await (await $('[aria-label="Provider account"]')).selectByVisibleText("SDK Acct");
+    await (await $('[aria-label="Agent mode"]')).selectByVisibleText("Edit");
+    await (await $('[aria-label="Agent goal"]')).setValue("edit the readme");
+    await (await $("button*=New terminal")).click();
+
+    // The CTA appears only on the edit tab, and only after the run finishes and the
+    // worktree diff resolves (exit event → diff fetch → render). Waiting on it is
+    // unambiguous even with the earlier plan tab still mounted.
+    const cta = await $('[data-testid="sdk-review-cta"]');
+    await cta.waitForExist({ timeout: 20_000 });
+    expect(await cta.getText()).toContain("changed 1 file");
+
+    // Click via JS: a transient bottom-corner toast (e.g. "Worktree created" from the
+    // previous step) can overlay the footer button and intercept a native click. The
+    // JS click dispatches straight to the button's @click handler.
+    await browser.execute(() => {
+      const cta = document.querySelector('[data-testid="sdk-review-cta"]');
+      cta?.querySelector("button")?.click();
+    });
+
+    // The review was created by the existing completion flow and persists — find it
+    // in the Reviews view.
+    await (await $("button*=Reviews")).click();
+    await (await $('[data-testid="review-row"]')).waitForExist({ timeout: 10_000 });
   });
 });
