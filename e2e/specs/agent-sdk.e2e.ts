@@ -129,9 +129,13 @@ describe("claude agent sdk (plan-only)", () => {
     await cta.waitForExist({ timeout: 20_000 });
     expect(await cta.getText()).toContain("changed 1 file");
 
-    // Scope the button lookup to the footer (a combined `[attr] button*=Text` string
-    // is not a valid wdio selector).
-    await cta.$("button*=Review changes").click();
+    // Click via JS: a transient bottom-corner toast (e.g. "Worktree created" from the
+    // previous step) can overlay the footer button and intercept a native click. The
+    // JS click dispatches straight to the button's @click handler.
+    await browser.execute(() => {
+      const cta = document.querySelector('[data-testid="sdk-review-cta"]');
+      cta?.querySelector("button")?.click();
+    });
 
     // The review was created by the existing completion flow and persists — find it
     // in the Reviews view.

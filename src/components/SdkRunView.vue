@@ -32,6 +32,9 @@ const isEdit = computed(() => props.session.mode === "edit");
 const finished = computed(() => props.session.status !== "running");
 const diff = computed(() => coding.diffs[props.session.coding_workspace_id]);
 const changedCount = computed(() => diff.value?.changed_files.length ?? 0);
+// Collapses the CTA after a successful completion so a second click can't double-
+// complete. Durable for the app session: AgentsView keeps tabs mounted (v-show, never
+// remounted), so this flag survives tab/workspace switches.
 const reviewed = ref(false);
 const showReview = computed(
   () =>

@@ -22,12 +22,8 @@ const emit = (o) => process.stdout.write(JSON.stringify(o) + "\n");
 // shell, no egress, no subagents) — the SDK's documented locked-down pattern. Edit
 // mode adds Write/Edit; plan mode is read-only.
 const allowedTools =
-  mode === "edit"
-    ? ["Read", "Glob", "Grep", "Edit", "Write"]
-    : ["Read", "Glob", "Grep"];
+  mode === "edit" ? ["Read", "Glob", "Grep", "Edit", "Write"] : ["Read", "Glob", "Grep"];
 
-// Bound Write/Edit to the worktree (cwd). dontAsk skips canUseTool, so a PreToolUse
-// hook (runs first, can deny) is the mechanism that scopes writes.
 // Bound Write/Edit to the worktree. Canonicalize via realpath so a symlinked
 // directory inside the worktree pointing outside cannot be used to escape. The
 // target file may not exist yet, so resolve the nearest existing ancestor (a
