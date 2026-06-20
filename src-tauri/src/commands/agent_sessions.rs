@@ -92,6 +92,7 @@ pub fn start_agent_session(
     state: State<'_, Mutex<Connection>>,
     coding_workspace_id: String,
     adapter_id: String,
+    account_id: Option<String>,
     cols: u16,
     rows: u16,
 ) -> Result<AgentSession, String> {
@@ -99,8 +100,11 @@ pub fn start_agent_session(
         return Err(format!("Unknown agent adapter '{adapter_id}'"));
     };
 
-    // Resolve the worktree + its workspace under the lock, then release it.
-    let (workspace_id, worktree_path) = {
+    let store = keystore::resolve();
+
+    // Resolve the worktree + workspace AND load/validate the chosen account under
+    // one lock, then release before any keychain IO or spawn.
+    let (workspace_id, worktree_path, account) = {
         let conn = state.lock().map_err(|e| e.to_string())?;
         let Some(cw) =
             coding_workspace::get(&conn, &coding_workspace_id).map_err(|e| e.to_string())?
@@ -109,8 +113,13 @@ pub fn start_agent_session(
                 "Coding workspace '{coding_workspace_id}' does not exist"
             ));
         };
-        (cw.workspace_id, cw.worktree_path)
+        let account = load_session_account(&conn, account_id.as_deref(), &cw.workspace_id)?;
+        (cw.workspace_id, cw.worktree_path, account)
     };
+
+    // Resolve the account's key from the keychain (no lock held) and build the env.
+    let env = resolve_session_env(&adapter, account.as_ref(), store.as_ref())?;
+    let account_row_id = account.as_ref().map(|a| a.id.as_str());
 
     let program = agent::resolve_program(&adapter);
     let id = new_id();
@@ -123,7 +132,7 @@ pub fn start_agent_session(
 
     // Spawn the PTY.
     let args: Vec<&str> = adapter.args.clone();
-    let spawned = pty::spawn(&program, &args, Path::new(&worktree_path), &[], cols, rows)?;
+    let spawned = pty::spawn(&program, &args, Path::new(&worktree_path), &env, cols, rows)?;
     let pty::Spawned {
         handle,
         reader,
@@ -141,7 +150,7 @@ pub fn start_agent_session(
             adapter.id,
             &program,
             &transcript_str,
-            None,
+            account_row_id,
             None,
         )
         .map_err(|e| e.to_string())?
@@ -160,8 +169,12 @@ pub fn start_agent_session(
     // Record session.started.
     {
         let conn = state.lock().map_err(|e| e.to_string())?;
-        let payload =
-            serde_json::json!({ "agent_session_id": id, "adapter_id": adapter.id }).to_string();
+        let payload = serde_json::json!({
+            "agent_session_id": id,
+            "adapter_id": adapter.id,
+            "account_id": account_row_id,
+        })
+        .to_string();
         let _ = event::create(&conn, &new_id(), &workspace_id, "session.started", &payload);
     }
 
