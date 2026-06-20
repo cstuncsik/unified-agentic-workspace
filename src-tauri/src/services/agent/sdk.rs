@@ -19,6 +19,17 @@ pub fn redact(line: &str, secret: &str) -> String {
     }
 }
 
+/// Normalize a caller-supplied mode to the sidecar contract. Unknown/None → "plan"
+/// (fail safe: never silently grant edit). Returns 'static so a caller cannot smuggle
+/// arbitrary argv into the sidecar through the mode slot.
+#[allow(dead_code)]
+pub fn normalize_sdk_mode(mode: Option<&str>) -> &'static str {
+    match mode {
+        Some("edit") => "edit",
+        _ => "plan",
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum SdkLine {
     /// A relayable event line (kind ∈ assistant|tool|result); `raw` is the JSON.
@@ -168,6 +179,16 @@ pub fn spawn(
 mod tests {
     use super::*;
     use std::io::{BufReader, Read};
+
+    #[test]
+    fn normalize_mode_fails_safe_to_plan() {
+        assert_eq!(normalize_sdk_mode(Some("edit")), "edit");
+        assert_eq!(normalize_sdk_mode(Some("plan")), "plan");
+        assert_eq!(normalize_sdk_mode(None), "plan");
+        // Fail safe: case-sensitive, and anything unrecognized is plan, never edit.
+        assert_eq!(normalize_sdk_mode(Some("EDIT")), "plan");
+        assert_eq!(normalize_sdk_mode(Some("garbage")), "plan");
+    }
 
     #[test]
     fn redact_masks_only_when_present() {
