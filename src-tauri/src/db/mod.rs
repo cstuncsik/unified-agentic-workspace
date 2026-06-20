@@ -62,6 +62,11 @@ const MIGRATIONS: &[(i64, &str, &str)] = &[
         "agent_session_account",
         include_str!("migrations/0011_agent_session_account.sql"),
     ),
+    (
+        12,
+        "agent_session_kind",
+        include_str!("migrations/0012_agent_session_kind.sql"),
+    ),
 ];
 
 /// Open (creating if needed) the SQLite database at `db_path`, enable foreign keys,

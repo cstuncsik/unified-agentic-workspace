@@ -152,6 +152,7 @@ pub fn start_agent_session(
             &transcript_str,
             account_row_id,
             None,
+            "pty",
         )
         .map_err(|e| e.to_string())?
     };
