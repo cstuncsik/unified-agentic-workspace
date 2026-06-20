@@ -37,6 +37,24 @@ struct AgentExit {
     exit_code: Option<i64>,
 }
 
+#[derive(Clone, Serialize)]
+struct AgentSdkEvent {
+    session_id: String,
+    line: String, // one redacted NDJSON object
+}
+
+/// SDK adapters must have a bound account (no silent ambient identity). Fixed,
+/// secret-free error.
+pub fn validate_account_required(
+    adapter: &AgentAdapter,
+    account: Option<&ProviderAccount>,
+) -> Result<(), String> {
+    if adapter.requires_account && account.is_none() {
+        return Err("This agent requires a provider account".into());
+    }
+    Ok(())
+}
+
 /// Base directory for session transcripts: `UAW_TRANSCRIPTS_DIR` or
 /// `<app_data_dir>/transcripts`.
 fn transcripts_base(app: &AppHandle) -> Result<PathBuf, String> {
@@ -92,13 +110,38 @@ pub fn get_agent_session_transcript(
         .unwrap_or_default())
 }
 
+/// The redacted NDJSON lines of an SDK session's transcript (relayable lines only)
+/// for replay when a view (re)opens. The on-disk transcript is already masked.
 #[tauri::command]
+pub fn get_agent_sdk_transcript(
+    state: State<'_, Mutex<Connection>>,
+    id: String,
+) -> Result<Vec<String>, String> {
+    let path = {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        let Some(s) = agent_session::get(&conn, &id).map_err(|e| e.to_string())? else {
+            return Err(format!("Agent session '{id}' does not exist"));
+        };
+        s.transcript_path
+    };
+    let bytes = std::fs::read(&path).unwrap_or_default();
+    let text = String::from_utf8_lossy(&bytes);
+    Ok(text
+        .lines()
+        .filter(|l| !matches!(sdk::parse_sdk_line(l), sdk::SdkLine::Skip))
+        .map(|l| l.to_string())
+        .collect())
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn start_agent_session(
     app: AppHandle,
     state: State<'_, Mutex<Connection>>,
     coding_workspace_id: String,
     adapter_id: String,
     account_id: Option<String>,
+    prompt: Option<String>,
     cols: u16,
     rows: u16,
 ) -> Result<AgentSession, String> {
@@ -126,15 +169,35 @@ pub fn start_agent_session(
     // Resolve the account's key from the keychain (no lock held) and build the env.
     let env = resolve_session_env(&adapter, account.as_ref(), store.as_ref())?;
     let account_row_id = account.as_ref().map(|a| a.id.as_str());
+    validate_account_required(&adapter, account.as_ref())?;
 
-    let program = agent::resolve_program(&adapter);
     let id = new_id();
-
-    // Prepare the transcript file.
+    // Prepare the transcript file (shared by both runtimes).
     let base = transcripts_base(&app)?;
     std::fs::create_dir_all(&base).map_err(|e| format!("failed to create transcripts dir: {e}"))?;
     let transcript_path = base.join(format!("{id}.log"));
     let transcript_str = transcript_path.to_string_lossy().to_string();
+
+    // Headless SDK adapters take a different runtime (piped child + NDJSON).
+    if adapter.kind == "sdk" {
+        return start_sdk_session(
+            app,
+            state,
+            adapter,
+            env,
+            account_row_id.map(|s| s.to_string()),
+            workspace_id,
+            worktree_path,
+            coding_workspace_id,
+            prompt.unwrap_or_default(),
+            id,
+            transcript_path,
+            transcript_str,
+        );
+    }
+
+    // ---- PTY path ----
+    let program = agent::resolve_program(&adapter);
 
     // Spawn the PTY.
     let args: Vec<&str> = adapter.args.clone();
@@ -235,6 +298,153 @@ pub fn start_agent_session(
             }
         } else {
             (wait_status, wait_code)
+        };
+        let _ = thread_app.emit(
+            "agent-exit",
+            AgentExit {
+                session_id: thread_id.clone(),
+                status,
+                exit_code: code,
+            },
+        );
+        if let Some(procs) = thread_app.try_state::<AgentProcesses>() {
+            if let Ok(mut map) = procs.0.lock() {
+                map.remove(&thread_id);
+            }
+        }
+    });
+
+    Ok(session)
+}
+
+/// Headless Claude Agent SDK run: spawn the Node sidecar as a piped child, stream
+/// its redacted NDJSON to the transcript + `agent-sdk-event`, derive status from
+/// the terminal `result` event.
+#[allow(clippy::too_many_arguments)]
+fn start_sdk_session(
+    app: AppHandle,
+    state: State<'_, Mutex<Connection>>,
+    adapter: AgentAdapter,
+    env: Vec<(String, String)>,
+    account_row_id: Option<String>,
+    workspace_id: String,
+    worktree_path: String,
+    coding_workspace_id: String,
+    goal: String,
+    id: String,
+    transcript_path: PathBuf,
+    transcript_str: String,
+) -> Result<AgentSession, String> {
+    let sidecar = agent::resolve_sdk_sidecar();
+    // The injected key value — for masking it out of everything we persist/emit.
+    let injected_key = adapter
+        .api_key_env
+        .and_then(|name| env.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))
+        .unwrap_or_default();
+    // Isolate the SDK's own on-disk config/session files away from ~/.claude.
+    let mut sdk_env = env.clone();
+    sdk_env.push((
+        "CLAUDE_CONFIG_DIR".to_string(),
+        transcript_path
+            .with_extension("cfg")
+            .to_string_lossy()
+            .to_string(),
+    ));
+
+    let sdk::SdkSpawned {
+        stdout,
+        mut child,
+        handle,
+    } = sdk::spawn(&sidecar, &goal, Path::new(&worktree_path), &sdk_env)?;
+
+    let session = {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        agent_session::create(
+            &conn,
+            &id,
+            &workspace_id,
+            &coding_workspace_id,
+            adapter.id,
+            &sidecar,
+            &transcript_str,
+            account_row_id.as_deref(),
+            None,
+            "sdk",
+        )
+        .map_err(|e| e.to_string())?
+    };
+
+    {
+        let procs = app.state::<AgentProcesses>();
+        procs
+            .0
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(id.clone(), AgentProc::Sdk(handle));
+    }
+    {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        let payload = serde_json::json!({
+            "agent_session_id": id,
+            "adapter_id": adapter.id,
+            "account_id": account_row_id,
+        })
+        .to_string();
+        let _ = event::create(&conn, &new_id(), &workspace_id, "session.started", &payload);
+    }
+
+    let thread_app = app.clone();
+    let thread_id = id.clone();
+    let thread_ws = workspace_id.clone();
+    std::thread::spawn(move || {
+        let mut transcript = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&transcript_path)
+            .ok();
+        let reader = std::io::BufReader::new(stdout);
+        let outcome = sdk::pump_ndjson(reader, |parsed| {
+            // Persist + emit only relayable lines, with the key masked out.
+            let line = match parsed {
+                sdk::SdkLine::Event { raw, .. } => sdk::redact(raw, &injected_key),
+                sdk::SdkLine::Error(msg) => serde_json::json!({
+                    "type": "error",
+                    "message": sdk::redact(msg, &injected_key),
+                })
+                .to_string(),
+                sdk::SdkLine::Skip => return,
+            };
+            if let Some(f) = transcript.as_mut() {
+                let _ = f.write_all(line.as_bytes());
+                let _ = f.write_all(b"\n");
+            }
+            let _ = thread_app.emit(
+                "agent-sdk-event",
+                AgentSdkEvent {
+                    session_id: thread_id.clone(),
+                    line,
+                },
+            );
+        });
+        let exit = child.wait().ok().and_then(|s| s.code()).map(|c| c as i64);
+        let wait_status = sdk::sdk_status(outcome.saw_result, outcome.saw_error, exit).to_string();
+
+        let (status, code) = if let Some(conn) = thread_app.try_state::<Mutex<Connection>>() {
+            if let Ok(conn) = conn.lock() {
+                let _ = agent_session::mark_exited(&conn, &thread_id, &wait_status, exit);
+                let row = agent_session::get(&conn, &thread_id).ok().flatten();
+                let status = row.as_ref().map(|s| s.status.clone()).unwrap_or(wait_status);
+                let code = row.as_ref().and_then(|s| s.exit_code);
+                let payload =
+                    serde_json::json!({ "agent_session_id": thread_id, "status": status })
+                        .to_string();
+                let _ = event::create(&conn, &new_id(), &thread_ws, "agent.exited", &payload);
+                (status, code)
+            } else {
+                (wait_status, exit)
+            }
+        } else {
+            (wait_status, exit)
         };
         let _ = thread_app.emit(
             "agent-exit",
