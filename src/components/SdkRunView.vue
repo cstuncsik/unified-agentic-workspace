@@ -32,8 +32,20 @@ const isEdit = computed(() => props.session.mode === "edit");
 const finished = computed(() => props.session.status !== "running");
 const diff = computed(() => coding.diffs[props.session.coding_workspace_id]);
 const changedCount = computed(() => diff.value?.changed_files.length ?? 0);
+const reviewed = ref(false);
 const showReview = computed(
-  () => isEdit.value && finished.value && !!diff.value && !diff.value.is_clean && !diff.value.error,
+  () =>
+    isEdit.value &&
+    finished.value &&
+    !!diff.value &&
+    !diff.value.is_clean &&
+    !diff.value.error &&
+    !reviewed.value,
+);
+// Surface a diff-load failure for a finished edit run rather than silently hiding
+// the footer (showReview already excludes the error case).
+const diffError = computed(() =>
+  isEdit.value && finished.value ? (diff.value?.error ?? null) : null,
 );
 const completing = ref(false);
 
@@ -55,6 +67,7 @@ async function reviewChanges() {
   try {
     const review = await coding.complete(props.session.coding_workspace_id);
     reviews.insert(review);
+    reviewed.value = true; // collapse the CTA so a second click can't double-complete
     toast.success("Review created — see Reviews");
   } catch (e) {
     toast.error(String(e));
@@ -92,6 +105,12 @@ async function reviewChanges() {
         {{ completing ? "Creating review…" : "Review changes" }}
       </button>
     </footer>
+    <footer v-else-if="reviewed" class="sdk-foot" data-testid="sdk-review-done">
+      <span>✓ Review created — see Reviews</span>
+    </footer>
+    <p v-else-if="diffError" class="muted sdk-differr" data-testid="sdk-diff-error">
+      Could not read changes — {{ diffError }}
+    </p>
   </div>
 </template>
 
@@ -134,6 +153,11 @@ async function reviewChanges() {
   padding: 0.5rem;
   border-top: 1px solid var(--re-color-border);
   font-size: 0.85rem;
+}
+.sdk-differr {
+  padding: 0.5rem;
+  margin: 0;
+  font-size: 0.8rem;
 }
 .muted {
   color: var(--re-color-text-muted);
