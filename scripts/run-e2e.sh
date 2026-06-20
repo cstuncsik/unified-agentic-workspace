@@ -62,14 +62,23 @@ exec cat
 AGENT
 chmod +x /tmp/uaw-fake-agent
 
-# A fake Claude Agent SDK sidecar for the SDK e2e: goal via argv ($1), emits canned
-# NDJSON incl. a deliberate $ANTHROPIC_API_KEY echo (to prove the backend redacts
-# it), a non-JSON garbage line (to prove no-crash), a KEY:set/unset presence marker,
-# then a result. Exits 0 (NOT exec cat — it is a one-shot, not a REPL).
+# A fake Claude Agent SDK sidecar for the SDK e2e: goal via argv ($1), mode via
+# argv ($2, default "plan"), emits canned NDJSON incl. a deliberate
+# $ANTHROPIC_API_KEY echo (to prove the backend redacts it), a non-JSON garbage
+# line (to prove no-crash), a KEY:set/unset presence marker, then a result.
+# In edit mode, writes an untracked file into the worktree (cwd) to simulate a
+# real agent edit. Exits 0 (NOT exec cat — it is a one-shot, not a REPL).
 cat >/tmp/uaw-fake-sdk <<'SDK'
 #!/usr/bin/env bash
 goal="$1"
+mode="${2:-plan}"
 km=KEY:unset; [ -n "${ANTHROPIC_API_KEY:-}" ] && km=KEY:set
+# In edit mode, simulate an agent edit by writing an untracked file into the
+# worktree (cwd is the worktree: the backend sets current_dir). Relative path only,
+# never escaping the worktree. Plan mode leaves the tree clean.
+if [ "$mode" = "edit" ]; then
+  printf 'edited by fake sdk\n' > AGENT_EDIT.md
+fi
 printf '{"type":"assistant","text":"Planning: %s"}\n' "${goal//\"/}"
 printf '{"type":"tool","name":"Read","summary":"README.md"}\n'
 printf '{"type":"tool","name":"echo","summary":"%s"}\n' "${ANTHROPIC_API_KEY:-none}"
