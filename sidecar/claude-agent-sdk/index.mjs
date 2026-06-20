@@ -2,12 +2,20 @@
 // Headless Claude Agent SDK runner. Goal via argv[2], mode via argv[3]
 // ("plan" | "edit"); key via env (injected by the backend). Emits one compact
 // NDJSON object per message on stdout.
+import fs from "node:fs";
 import path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const goal = process.argv[2] ?? "";
 const mode = process.argv[3] === "edit" ? "edit" : "plan";
 const cwd = process.cwd();
+// Canonical worktree root, resolved once, for the worktree-write boundary check.
+let realCwd;
+try {
+  realCwd = fs.realpathSync(cwd);
+} catch {
+  realCwd = path.resolve(cwd);
+}
 const emit = (o) => process.stdout.write(JSON.stringify(o) + "\n");
 
 // Explicit tool surface: dontAsk + an allowlist denies everything not listed (no
@@ -20,10 +28,29 @@ const allowedTools =
 
 // Bound Write/Edit to the worktree (cwd). dontAsk skips canUseTool, so a PreToolUse
 // hook (runs first, can deny) is the mechanism that scopes writes.
+// Bound Write/Edit to the worktree. Canonicalize via realpath so a symlinked
+// directory inside the worktree pointing outside cannot be used to escape. The
+// target file may not exist yet, so resolve the nearest existing ancestor (a
+// not-yet-created tail can't be a symlink) and append the remainder. Any
+// resolution failure denies (fail closed).
 const withinWorktree = (p) => {
   if (!p) return false;
-  const resolved = path.resolve(cwd, p);
-  return resolved === cwd || resolved.startsWith(cwd + path.sep);
+  const abs = path.resolve(cwd, p);
+  let existing = abs;
+  while (!fs.existsSync(existing)) {
+    const parent = path.dirname(existing);
+    if (parent === existing) return false; // reached the root without an existing dir
+    existing = parent;
+  }
+  let realExisting;
+  try {
+    realExisting = fs.realpathSync(existing);
+  } catch {
+    return false;
+  }
+  const tail = path.relative(existing, abs);
+  const real = tail ? path.join(realExisting, tail) : realExisting;
+  return real === realCwd || real.startsWith(realCwd + path.sep);
 };
 const boundToWorktree = async (input) => {
   const ti = input.tool_input ?? {};
