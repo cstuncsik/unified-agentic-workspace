@@ -26,6 +26,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 portable-pty = "0.9"
+libc = "0.2"
 
 # The OS keychain backend is wired only on macOS for now (the user's platform).
 # `keyring` v3 has no default features; `apple-native` pulls only the Apple
