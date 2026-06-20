@@ -12,6 +12,7 @@ export interface AgentAdapter {
   name: string;
   program: string;
   args: string[];
+  provider: string | null;
   capabilities: AgentCapabilities;
 }
 
@@ -24,6 +25,8 @@ export interface AgentSession {
   status: string; // running | exited | stopped | failed
   exit_code: number | null;
   transcript_path: string;
+  account_id: string | null;
+  model_id: string | null;
   created_at: string;
   updated_at: string;
 }

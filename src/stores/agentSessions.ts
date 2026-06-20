@@ -24,8 +24,14 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     }
   }
 
-  async function start(codingWorkspaceId: string, adapterId: string, cols: number, rows: number) {
-    const session = await api.startAgentSession(codingWorkspaceId, adapterId, cols, rows);
+  async function start(
+    codingWorkspaceId: string,
+    adapterId: string,
+    accountId: string | null,
+    cols: number,
+    rows: number,
+  ) {
+    const session = await api.startAgentSession(codingWorkspaceId, adapterId, accountId, cols, rows);
     tabs.value.push({ session });
     activeId.value = session.id;
     return session;

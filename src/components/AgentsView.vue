@@ -3,16 +3,19 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useAgentSessionsStore } from "../stores/agentSessions";
 import { useCodingWorkspacesStore } from "../stores/codingWorkspaces";
 import { useWorkspacesStore } from "../stores/workspaces";
+import { useProviderAccountsStore } from "../stores/providerAccounts";
 import { useToast } from "../composables/useToast";
 import TerminalTab from "./TerminalTab.vue";
 
 const store = useAgentSessionsStore();
 const coding = useCodingWorkspacesStore();
 const workspaces = useWorkspacesStore();
+const providerAccounts = useProviderAccountsStore();
 const toast = useToast();
 
 const newWorktreeId = ref("");
 const newAdapterId = ref("");
+const newAccountId = ref("");
 const starting = ref(false);
 
 onMounted(async () => {
@@ -30,6 +33,20 @@ const worktreeLabel = (id: string) => {
 };
 const adapterLabel = (id: string) => store.adapters.find((a) => a.id === id)?.name ?? id;
 
+const adapterProvider = (id: string) => store.adapters.find((a) => a.id === id)?.provider ?? null;
+const adapterSupportsAccounts = computed(() => adapterProvider(newAdapterId.value) !== null);
+const accountOptions = computed(() =>
+  providerAccounts.list.filter((a) => a.provider === adapterProvider(newAdapterId.value)),
+);
+const accountLabel = (id: string | null) =>
+  id ? (providerAccounts.list.find((a) => a.id === id)?.display_name ?? "") : "";
+
+// Reset the chosen account when the adapter changes (its provider — and thus the
+// valid accounts — differ); a stale account would fail the provider check.
+watch(newAdapterId, () => {
+  newAccountId.value = "";
+});
+
 // Agent tabs persist in memory for the whole app session, but each belongs to one
 // workspace. Only show the current workspace's terminals; the others stay mounted
 // (hidden) and reappear when you switch back.
@@ -46,6 +63,7 @@ watch(
   (newId, oldId) => {
     if (oldId) store.lastActiveByWorkspace[oldId] = store.activeId;
     newWorktreeId.value = "";
+    newAccountId.value = "";
 
     const remembered = newId ? store.lastActiveByWorkspace[newId] : null;
     if (remembered && visibleTabs.value.some((t) => t.session.id === remembered)) {
@@ -63,7 +81,7 @@ async function openTerminal() {
   starting.value = true;
   try {
     // 80x24 is a safe initial size; the TerminalTab fits + resizes on mount.
-    await store.start(newWorktreeId.value, newAdapterId.value, 80, 24);
+    await store.start(newWorktreeId.value, newAdapterId.value, newAccountId.value || null, 80, 24);
   } catch (e) {
     toast.error(String(e));
   } finally {
@@ -117,6 +135,18 @@ async function openTerminal() {
         <select v-model="newAdapterId" class="re-select" data-size="sm" aria-label="Agent CLI">
           <option v-for="a in store.adapters" :key="a.id" :value="a.id">{{ a.name }}</option>
         </select>
+        <select
+          v-if="adapterSupportsAccounts"
+          v-model="newAccountId"
+          class="re-select"
+          data-size="sm"
+          aria-label="Provider account"
+        >
+          <option value="">Default (no key)</option>
+          <option v-for="acct in accountOptions" :key="acct.id" :value="acct.id">
+            {{ acct.display_name }}
+          </option>
+        </select>
         <button
           class="re-button"
           data-variant="brand"
@@ -142,7 +172,12 @@ async function openTerminal() {
         class="agents__term"
       >
         <div class="agents__termhead">
-          <span class="muted">{{ t.session.command }} · {{ t.session.status }}</span>
+          <span class="muted">
+            {{ t.session.command }} · {{ t.session.status }}
+            <template v-if="accountLabel(t.session.account_id)">
+              · {{ accountLabel(t.session.account_id) }}
+            </template>
+          </span>
           <button
             v-if="t.session.status === 'running'"
             type="button"
