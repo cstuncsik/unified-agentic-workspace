@@ -1,0 +1,21 @@
+sidecar/claude-agent-sdk/index.mjs
+  s_b49f7388e23022::t_000ab110c77e8f 31-35,38-53
+  s_b49f7388e23022::t_dee0a396e1c28b 5
+  s_b49f7388e23022::t_812beddb2096c8 12-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "f8a22c93528d98763d9f1a3ea27c9caf614bc45d",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
