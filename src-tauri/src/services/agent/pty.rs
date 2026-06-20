@@ -129,4 +129,27 @@ mod tests {
         std::env::remove_var("UAW_SPAWN_PROBE");
         assert_eq!(String::from_utf8_lossy(&out), "INJECTED");
     }
+
+    #[test]
+    fn spawn_env_blank_overrides_inherited_parent_var() {
+        // clear_env injects an EMPTY value to neutralize a stale higher-precedence
+        // ambient credential; the empty string must still override the inherited
+        // non-empty value (the security-critical half of clear_env).
+        std::env::set_var("UAW_BLANK_PROBE", "AMBIENT_LEAK");
+        let dir = std::env::temp_dir();
+        let mut spawned = spawn(
+            "sh",
+            &["-c", "printf '[%s]' \"$UAW_BLANK_PROBE\""],
+            &dir,
+            &[("UAW_BLANK_PROBE".to_string(), String::new())],
+            80,
+            24,
+        )
+        .expect("spawn sh in pty");
+        let mut out: Vec<u8> = Vec::new();
+        pump(spawned.reader, |chunk| out.extend_from_slice(chunk));
+        spawned.child.wait().expect("child waits");
+        std::env::remove_var("UAW_BLANK_PROBE");
+        assert_eq!(String::from_utf8_lossy(&out), "[]"); // blanked, not "[AMBIENT_LEAK]"
+    }
 }

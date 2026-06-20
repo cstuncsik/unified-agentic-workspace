@@ -391,10 +391,15 @@ mod account_env_tests {
         let claude = find_adapter("claude-code").unwrap();
         let env = resolve_session_env(&claude, Some(&acct), &store).unwrap();
 
-        // Key present, ONLY as the value of api_key_env.
-        assert!(env
-            .iter()
-            .any(|(k, v)| k == "ANTHROPIC_API_KEY" && v == SENTINEL));
+        // Key present EXACTLY once, only as the value of api_key_env — never as a
+        // key, never in any other entry (e.g. a clear_env slot).
+        assert_eq!(
+            env.iter()
+                .filter(|(_, v)| v == SENTINEL)
+                .map(|(k, _)| k.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ANTHROPIC_API_KEY"],
+        );
         assert!(env.iter().all(|(k, _)| k != SENTINEL));
         // Higher-precedence ambient var blanked.
         assert!(env
