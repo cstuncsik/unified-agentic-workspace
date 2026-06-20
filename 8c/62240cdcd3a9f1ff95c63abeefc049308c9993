@@ -1,0 +1,37 @@
+src/types/agentSession.ts
+  s_b49f7388e23022::t_5dd50facff3bcd 16-17,21-28
+  s_b49f7388e23022::t_2bca50e16fa08b 42
+src/api/agentSessions.ts
+  s_b49f7388e23022::t_e6e5739d0077d3 16,24,30-31
+src/stores/agentSessions.ts
+  s_b49f7388e23022::t_9cf73daffc104e 3-4
+  s_b49f7388e23022::t_570accec710f23 19-50,53,65,69-70
+  s_b49f7388e23022::t_b8a2de63291b20 111-112
+src/components/AgentsView.vue
+  s_b49f7388e23022::t_cb64f9ee8da5f1 77
+  s_b49f7388e23022::t_f1e1eeb5efbf40 20
+  s_b49f7388e23022::t_f3b0955419b3d6 28-30,32-36
+  s_b49f7388e23022::t_3940d7e400c7d6 57
+  s_b49f7388e23022::t_ee420f225ad74d 9
+  s_b49f7388e23022::t_ff78aea999d564 168-175
+  s_b49f7388e23022::t_c63e20f81c992c 95-102
+  s_b49f7388e23022::t_8628f67a2f0aba 218-219
+src/components/SdkRunView.vue
+  s_b49f7388e23022::t_a2d95d1f73b9e0 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "8c62240cdcd3a9f1ff95c63abeefc049308c9993",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
