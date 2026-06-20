@@ -142,6 +142,7 @@ pub fn start_agent_session(
     adapter_id: String,
     account_id: Option<String>,
     prompt: Option<String>,
+    mode: Option<String>,
     cols: u16,
     rows: u16,
 ) -> Result<AgentSession, String> {
@@ -190,6 +191,7 @@ pub fn start_agent_session(
             worktree_path,
             coding_workspace_id,
             prompt.unwrap_or_default(),
+            sdk::normalize_sdk_mode(mode.as_deref()),
             id,
             transcript_path,
             transcript_str,
@@ -332,6 +334,7 @@ fn start_sdk_session(
     worktree_path: String,
     coding_workspace_id: String,
     goal: String,
+    mode: &str,
     id: String,
     transcript_path: PathBuf,
     transcript_str: String,
@@ -356,7 +359,7 @@ fn start_sdk_session(
         stdout,
         mut child,
         handle,
-    } = sdk::spawn(&sidecar, &goal, Path::new(&worktree_path), &sdk_env)?;
+    } = sdk::spawn(&sidecar, &goal, mode, Path::new(&worktree_path), &sdk_env)?;
 
     let session = {
         let conn = state.lock().map_err(|e| e.to_string())?;
@@ -371,7 +374,7 @@ fn start_sdk_session(
             account_row_id.as_deref(),
             None,
             "sdk",
-            None,
+            Some(mode),
         )
         .map_err(|e| e.to_string())?
     };
