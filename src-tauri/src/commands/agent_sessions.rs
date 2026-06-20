@@ -121,7 +121,7 @@ pub fn start_agent_session(
 
     // Spawn the PTY.
     let args: Vec<&str> = adapter.args.clone();
-    let spawned = pty::spawn(&program, &args, Path::new(&worktree_path), cols, rows)?;
+    let spawned = pty::spawn(&program, &args, Path::new(&worktree_path), &[], cols, rows)?;
     let pty::Spawned {
         handle,
         reader,
