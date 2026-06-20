@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import { listen } from "@tauri-apps/api/event";
-import type { AgentAdapter, AgentSession, SdkEvent } from "../types/agentSession";
+import type { AgentAdapter, AgentExit, AgentSdkEvent, AgentSession, SdkEvent } from "../types/agentSession";
 import * as api from "../api/agentSessions";
 
 /** An open terminal tab: a started session plus its current status. */
@@ -29,15 +29,21 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     }
   }
 
-  /** Start the global agent-sdk-event listener once. */
-  async function ensureSdkListener() {
+  /** Register the global agent-event listeners once. Both the SDK feed stream AND
+   *  the exit/status stream are store-owned so they work for every session kind
+   *  (SDK sessions never mount TerminalTab) and never miss events before a view
+   *  mounts. */
+  async function ensureListeners() {
     if (sdkListenerStarted) return;
     sdkListenerStarted = true;
-    await listen<{ session_id: string; line: string }>("agent-sdk-event", (e) => {
+    await listen<AgentSdkEvent>("agent-sdk-event", (e) => {
       const ev = parseSdkLine(e.payload.line);
       if (!ev) return;
       const id = e.payload.session_id;
       sdkEvents.value = { ...sdkEvents.value, [id]: [...(sdkEvents.value[id] ?? []), ev] };
+    });
+    await listen<AgentExit>("agent-exit", (e) => {
+      setStatus(e.payload.session_id, e.payload.status, e.payload.exit_code);
     });
   }
 
@@ -45,12 +51,13 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
   async function loadSdkTranscript(id: string) {
     if (sdkEvents.value[id]) return; // already have live state
     const lines = await api.getAgentSdkTranscript(id);
+    if (sdkEvents.value[id]) return; // live events arrived during the fetch — they win
     const evs = lines.map(parseSdkLine).filter((x): x is SdkEvent => x !== null);
     sdkEvents.value = { ...sdkEvents.value, [id]: evs };
   }
 
   async function loadAdapters() {
-    void ensureSdkListener();
+    void ensureListeners();
     try {
       adapters.value = await api.listAgentAdapters();
     } catch (e) {
@@ -66,7 +73,7 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     cols: number,
     rows: number,
   ) {
-    await ensureSdkListener();
+    await ensureListeners();
     const session = await api.startAgentSession(codingWorkspaceId, adapterId, accountId, prompt, cols, rows);
     tabs.value.push({ session });
     activeId.value = session.id;

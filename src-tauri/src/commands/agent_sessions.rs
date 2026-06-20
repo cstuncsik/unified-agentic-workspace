@@ -686,4 +686,20 @@ mod account_env_tests {
         // Nonexistent id -> rejected.
         assert!(load_session_account(&conn, Some("nope"), &ws_a).is_err());
     }
+
+    #[test]
+    fn requires_account_gate() {
+        let sdk = find_adapter("claude-agent-sdk").unwrap();
+        let pty = find_adapter("claude-code").unwrap();
+        // SDK + no account -> fail closed, fixed secret-free string.
+        let err = validate_account_required(&sdk, None).unwrap_err();
+        assert_eq!(err, "This agent requires a provider account");
+        // PTY + no account -> allowed (legacy ambient behavior).
+        assert!(validate_account_required(&pty, None).is_ok());
+        // SDK + an account -> allowed.
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "W", "mixed").unwrap().id;
+        let acct = account(&conn, &ws, "anthropic");
+        assert!(validate_account_required(&sdk, Some(&acct)).is_ok());
+    }
 }

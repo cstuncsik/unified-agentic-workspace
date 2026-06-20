@@ -238,4 +238,13 @@ mod tests {
         std::env::remove_var("UAW_SDK_PROBE");
         assert_eq!(out.trim(), "INJECTED"); // injected beats the inherited "PARENT"
     }
+
+    #[test]
+    fn spawn_missing_program_is_opaque() {
+        let err = match spawn("/no/such/sidecar-xyz", "goal", &std::env::temp_dir(), &[]) {
+            Err(e) => e,
+            Ok(_) => panic!("expected spawn to fail"),
+        };
+        assert_eq!(err, "Failed to start the agent sidecar");
+    }
 }

@@ -269,7 +269,12 @@ async function openTerminal() {
 }
 .new {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
+}
+.new__goal {
+  flex-basis: 100%;
+  resize: vertical;
 }
 .agents__pane {
   flex: 1;

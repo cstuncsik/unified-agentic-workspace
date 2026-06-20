@@ -55,3 +55,9 @@ export interface AgentExit {
   status: string;
   exit_code: number | null;
 }
+
+/** One streamed Claude Agent SDK event line (a redacted NDJSON object). */
+export interface AgentSdkEvent {
+  session_id: string;
+  line: string;
+}

@@ -118,12 +118,21 @@ pub fn resolve_program(adapter: &AgentAdapter) -> String {
 }
 
 /// The Node sidecar entry to spawn for the SDK adapter: `UAW_AGENT_SDK_SIDECAR`
-/// overrides (so e2e injects a fake) else the bundled default path.
+/// overrides (so e2e injects a fake) else the bundled default. The default is
+/// resolved to an ABSOLUTE path against the backend's cwd, because the child is
+/// spawned with its working directory set to the worktree — a relative program
+/// path would otherwise resolve against the worktree and fail. (Bundling the
+/// sidecar as a packaged resource is a later slice.)
 pub fn resolve_sdk_sidecar() -> String {
-    match std::env::var("UAW_AGENT_SDK_SIDECAR") {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => "sidecar/claude-agent-sdk/index.mjs".to_string(),
+    if let Ok(v) = std::env::var("UAW_AGENT_SDK_SIDECAR") {
+        if !v.trim().is_empty() {
+            return v;
+        }
     }
+    let rel = "sidecar/claude-agent-sdk/index.mjs";
+    std::env::current_dir()
+        .map(|d| d.join(rel).to_string_lossy().into_owned())
+        .unwrap_or_else(|_| rel.to_string())
 }
 
 #[cfg(test)]
