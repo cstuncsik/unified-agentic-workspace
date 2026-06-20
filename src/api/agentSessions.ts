@@ -13,6 +13,7 @@ export function startAgentSession(
   codingWorkspaceId: string,
   adapterId: string,
   accountId: string | null,
+  prompt: string | null,
   cols: number,
   rows: number,
 ): Promise<AgentSession> {
@@ -20,9 +21,14 @@ export function startAgentSession(
     codingWorkspaceId,
     adapterId,
     accountId,
+    prompt,
     cols,
     rows,
   });
+}
+
+export function getAgentSdkTranscript(id: string): Promise<string[]> {
+  return invoke<string[]>("get_agent_sdk_transcript", { id });
 }
 
 export function writeAgentSession(id: string, data: string): Promise<void> {
