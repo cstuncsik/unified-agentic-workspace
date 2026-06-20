@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-06-20-agent-sdk-edit-mode-design.md
+  s_b49f7388e23022::t_9ed8da57bcac77 1-308
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "975f52cb22c5f24994f3fdf3987b6e9e6cb22398",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
