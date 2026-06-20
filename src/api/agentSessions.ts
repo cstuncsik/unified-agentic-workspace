@@ -12,10 +12,17 @@ export function listAgentSessions(codingWorkspaceId: string): Promise<AgentSessi
 export function startAgentSession(
   codingWorkspaceId: string,
   adapterId: string,
+  accountId: string | null,
   cols: number,
   rows: number,
 ): Promise<AgentSession> {
-  return invoke<AgentSession>("start_agent_session", { codingWorkspaceId, adapterId, cols, rows });
+  return invoke<AgentSession>("start_agent_session", {
+    codingWorkspaceId,
+    adapterId,
+    accountId,
+    cols,
+    rows,
+  });
 }
 
 export function writeAgentSession(id: string, data: string): Promise<void> {

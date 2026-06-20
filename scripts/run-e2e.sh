@@ -48,8 +48,15 @@ git -C /tmp/fixture-repo-board -c user.email=e2e@uaw.local -c user.name="UAW E2E
 
 # A fake interactive "agent CLI" for the agent-terminal e2e: prints a banner then
 # echoes stdin, so the PTY/xterm round-trip can be asserted without a real claude.
+# It also reports (boolean only, never the value) whether a provider API key was
+# injected into its env, so the account-injection e2e can prove key injection.
 cat >/tmp/uaw-fake-agent <<'AGENT'
 #!/usr/bin/env bash
+if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_API_KEY:-}" ]; then
+  printf 'KEY:set\n'
+else
+  printf 'KEY:unset\n'
+fi
 printf 'AGENT-READY\n'
 exec cat
 AGENT

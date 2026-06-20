@@ -13,12 +13,14 @@ pub struct AgentSession {
     pub status: String,
     pub exit_code: Option<i64>,
     pub transcript_path: String,
+    pub account_id: Option<String>,
+    pub model_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
 
 const COLUMNS: &str = "id, workspace_id, coding_workspace_id, adapter_id, command, status, \
-                       exit_code, transcript_path, created_at, updated_at";
+                       exit_code, transcript_path, account_id, model_id, created_at, updated_at";
 
 fn from_row(row: &Row) -> rusqlite::Result<AgentSession> {
     Ok(AgentSession {
@@ -30,6 +32,8 @@ fn from_row(row: &Row) -> rusqlite::Result<AgentSession> {
         status: row.get("status")?,
         exit_code: row.get("exit_code")?,
         transcript_path: row.get("transcript_path")?,
+        account_id: row.get("account_id")?,
+        model_id: row.get("model_id")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -44,14 +48,19 @@ pub fn create(
     adapter_id: &str,
     command: &str,
     transcript_path: &str,
+    account_id: Option<&str>,
+    model_id: Option<&str>,
 ) -> rusqlite::Result<AgentSession> {
     let now = now_rfc3339();
     conn.execute(
         "INSERT INTO agent_sessions
            (id, workspace_id, coding_workspace_id, adapter_id, command, status,
-            exit_code, transcript_path, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'running', NULL, ?6, ?7, ?7)",
-        params![id, workspace_id, coding_workspace_id, adapter_id, command, transcript_path, now],
+            exit_code, transcript_path, account_id, model_id, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'running', NULL, ?6, ?7, ?8, ?9, ?9)",
+        params![
+            id, workspace_id, coding_workspace_id, adapter_id, command,
+            transcript_path, account_id, model_id, now
+        ],
     )?;
     Ok(get(conn, id)?.expect("agent session exists immediately after insert"))
 }
@@ -117,7 +126,7 @@ pub fn set_status(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{coding_workspace, project, repository, workspace};
+    use crate::models::{coding_workspace, project, provider_account, repository, workspace};
     use crate::util::new_id;
 
     fn migrated_conn() -> Connection {
@@ -145,7 +154,7 @@ mod tests {
     }
 
     fn make(conn: &Connection, ws: &str, cw: &str) -> AgentSession {
-        create(conn, &new_id(), ws, cw, "claude-code", "claude", "/tmp/t.log").unwrap()
+        create(conn, &new_id(), ws, cw, "claude-code", "claude", "/tmp/t.log", None, None).unwrap()
     }
 
     #[test]
@@ -191,5 +200,33 @@ mod tests {
         let s = make(&conn, &ws, &cw);
         coding_workspace::delete(&conn, &cw).unwrap();
         assert!(get(&conn, &s.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn deleting_account_nulls_session_binding() {
+        let conn = migrated_conn();
+        let (ws, cw) = fixtures(&conn);
+        let acct_id = new_id();
+        provider_account::insert(&conn, &acct_id, &ws, "anthropic", "api-key", "Key", &acct_id)
+            .unwrap();
+        let s = create(
+            &conn,
+            &new_id(),
+            &ws,
+            &cw,
+            "claude-code",
+            "claude",
+            "/tmp/t.log",
+            Some(&acct_id),
+            Some("some-model"),
+        )
+        .unwrap();
+        assert_eq!(s.account_id.as_deref(), Some(acct_id.as_str()));
+        assert_eq!(s.model_id.as_deref(), Some("some-model"));
+
+        provider_account::delete(&conn, &acct_id).unwrap();
+        let after = get(&conn, &s.id).unwrap().unwrap();
+        assert_eq!(after.account_id, None); // FK SET NULL fired
+        assert!(get(&conn, &s.id).unwrap().is_some()); // session survives
     }
 }

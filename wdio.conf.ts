@@ -58,6 +58,11 @@ export const config: WebdriverIO.Config = {
     // Debug binary only: select a hermetic file-backed keystore so the test app
     // never touches the real OS keychain.
     process.env.UAW_KEYSTORE_DIR = path.join(sessionDir, "keystore");
+    // Scrub any ambient provider keys so the account-injection spec is hermetic:
+    // a Default (no-account) session must reach the agent with NO key in its env,
+    // and an account session's KEY:set must be the injected key, not a host leak.
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
 
     // tauri-driver listens on :4444 and forwards to the platform WebDriver.
     tauriDriver = spawn("tauri-driver", [], {

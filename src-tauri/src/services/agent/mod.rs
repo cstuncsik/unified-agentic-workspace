@@ -23,6 +23,13 @@ pub struct AgentAdapter {
     pub name: &'static str,
     pub program: &'static str,
     pub args: Vec<&'static str>,
+    /// Provider these accounts must match (None = no API-key account binding).
+    pub provider: Option<&'static str>,
+    /// Env var the CLI reads its API key from (None = key injection unsupported).
+    pub api_key_env: Option<&'static str>,
+    /// Higher-precedence ambient vars to blank when injecting, so a stale ambient
+    /// credential can't beat the chosen account's key.
+    pub clear_env: Vec<&'static str>,
     pub capabilities: AgentCapabilities,
 }
 
@@ -45,6 +52,9 @@ pub fn adapters() -> Vec<AgentAdapter> {
             name: "Claude Code",
             program: "claude",
             args: vec![],
+            provider: Some("anthropic"),
+            api_key_env: Some("ANTHROPIC_API_KEY"),
+            clear_env: vec!["ANTHROPIC_AUTH_TOKEN"],
             capabilities: full_capabilities(),
         },
         AgentAdapter {
@@ -52,6 +62,9 @@ pub fn adapters() -> Vec<AgentAdapter> {
             name: "Codex",
             program: "codex",
             args: vec![],
+            provider: Some("openai"),
+            api_key_env: Some("OPENAI_API_KEY"),
+            clear_env: vec![],
             capabilities: full_capabilities(),
         },
         AgentAdapter {
@@ -59,6 +72,9 @@ pub fn adapters() -> Vec<AgentAdapter> {
             name: "Gemini",
             program: "gemini",
             args: vec![],
+            provider: None,
+            api_key_env: None,
+            clear_env: vec![],
             capabilities: full_capabilities(),
         },
     ]
@@ -90,6 +106,20 @@ mod tests {
         assert!(ids.contains(&"gemini"));
         assert!(find_adapter("claude-code").is_some());
         assert!(find_adapter("nope").is_none());
+
+        let claude = find_adapter("claude-code").unwrap();
+        assert_eq!(claude.provider, Some("anthropic"));
+        assert_eq!(claude.api_key_env, Some("ANTHROPIC_API_KEY"));
+        assert_eq!(claude.clear_env, vec!["ANTHROPIC_AUTH_TOKEN"]);
+
+        let codex = find_adapter("codex").unwrap();
+        assert_eq!(codex.provider, Some("openai"));
+        assert_eq!(codex.api_key_env, Some("OPENAI_API_KEY"));
+
+        // Gemini has no creatable account in this slice -> no key binding.
+        let gemini = find_adapter("gemini").unwrap();
+        assert_eq!(gemini.provider, None);
+        assert_eq!(gemini.api_key_env, None);
     }
 
     #[test]
