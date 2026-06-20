@@ -8,8 +8,10 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::models::agent_session::{self, AgentSession};
+use crate::models::provider_account::{self, ProviderAccount};
 use crate::models::{coding_workspace, event};
-use crate::services::agent::{self, pty};
+use crate::services::agent::{self, pty, AgentAdapter};
+use crate::services::keystore::{self, KeyStore};
 use crate::util::new_id;
 
 /// Registry of live PTY sessions, keyed by agent-session id.
@@ -282,4 +284,165 @@ pub fn stop_agent_session(
         let _ = handle.killer.kill();
     }
     Ok(())
+}
+
+/// Load and workspace-scope-validate the chosen account. Connection-only — call
+/// UNDER the lock. `None` -> no account; an account in another workspace or a
+/// missing id -> a fixed opaque error.
+pub fn load_session_account(
+    conn: &Connection,
+    account_id: Option<&str>,
+    workspace_id: &str,
+) -> Result<Option<ProviderAccount>, String> {
+    let Some(account_id) = account_id else {
+        return Ok(None);
+    };
+    match provider_account::get(conn, account_id) {
+        Ok(Some(account)) if account.workspace_id == workspace_id => Ok(Some(account)),
+        _ => Err("Selected account is not available in this workspace".into()),
+    }
+}
+
+/// Build the PTY environment for a session. Reads the keychain — call OUTSIDE the
+/// connection lock. Every error is a fixed, secret-free string; the key only ever
+/// appears as the VALUE of the adapter's api_key_env.
+pub fn resolve_session_env(
+    adapter: &AgentAdapter,
+    account: Option<&ProviderAccount>,
+    store: &dyn KeyStore,
+) -> Result<Vec<(String, String)>, String> {
+    let Some(account) = account else {
+        return Ok(Vec::new()); // no account -> inherit ambient env (legacy behavior)
+    };
+    let Some(api_key_env) = adapter.api_key_env else {
+        return Err("This agent does not support API key accounts".into());
+    };
+    if adapter.provider != Some(account.provider.as_str()) {
+        return Err("Selected account does not match this agent's provider".into());
+    }
+    let key = match store.get(&account.keychain_ref) {
+        Ok(Some(key)) => key,
+        Ok(None) => return Err("Stored key for this account is missing".into()),
+        Err(_) => return Err("Failed to load the account key".into()),
+    };
+    let mut env = vec![(api_key_env.to_string(), key)];
+    for clear in &adapter.clear_env {
+        env.push((clear.to_string(), String::new()));
+    }
+    Ok(env)
+}
+
+#[cfg(test)]
+mod account_env_tests {
+    use super::*;
+    use crate::models::workspace;
+    use crate::services::agent::find_adapter;
+    use crate::services::keystore::FileKeyStore;
+
+    const SENTINEL: &str = "SENTINEL_KEY_abc123";
+
+    fn migrated_conn() -> Connection {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+        conn.execute_batch("PRAGMA foreign_keys = ON;")
+            .expect("enable foreign keys");
+        crate::db::run_migrations(&mut conn).expect("run migrations");
+        conn
+    }
+
+    fn temp_store() -> FileKeyStore {
+        let mut d = std::env::temp_dir();
+        d.push(format!("uaw-env-test-{}", new_id()));
+        FileKeyStore::new(d)
+    }
+
+    fn account(conn: &Connection, ws: &str, provider: &str) -> ProviderAccount {
+        let id = new_id();
+        provider_account::insert(conn, &id, ws, provider, "api-key", "Acct", &id).unwrap()
+    }
+
+    #[test]
+    fn no_account_yields_empty_env() {
+        let claude = find_adapter("claude-code").unwrap();
+        let store = temp_store();
+        assert!(resolve_session_env(&claude, None, &store).unwrap().is_empty());
+    }
+
+    #[test]
+    fn matching_account_injects_key_and_clears_collisions() {
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "W", "mixed").unwrap().id;
+        let acct = account(&conn, &ws, "anthropic");
+        let store = temp_store();
+        store.set(&acct.keychain_ref, SENTINEL).unwrap();
+
+        let claude = find_adapter("claude-code").unwrap();
+        let env = resolve_session_env(&claude, Some(&acct), &store).unwrap();
+
+        // Key present, ONLY as the value of api_key_env.
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "ANTHROPIC_API_KEY" && v == SENTINEL));
+        assert!(env.iter().all(|(k, _)| k != SENTINEL));
+        // Higher-precedence ambient var blanked.
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "ANTHROPIC_AUTH_TOKEN" && v.is_empty()));
+    }
+
+    #[test]
+    fn provider_mismatch_is_rejected_without_leak() {
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "W", "mixed").unwrap().id;
+        let openai_acct = account(&conn, &ws, "openai");
+        let store = temp_store();
+        store.set(&openai_acct.keychain_ref, SENTINEL).unwrap();
+
+        let claude = find_adapter("claude-code").unwrap();
+        let err = resolve_session_env(&claude, Some(&openai_acct), &store).unwrap_err();
+        assert_eq!(err, "Selected account does not match this agent's provider");
+        assert!(!err.contains(SENTINEL));
+    }
+
+    #[test]
+    fn adapter_without_key_env_rejects_account() {
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "W", "mixed").unwrap().id;
+        let acct = account(&conn, &ws, "anthropic");
+        let store = temp_store();
+        store.set(&acct.keychain_ref, SENTINEL).unwrap();
+
+        let gemini = find_adapter("gemini").unwrap();
+        let err = resolve_session_env(&gemini, Some(&acct), &store).unwrap_err();
+        assert_eq!(err, "This agent does not support API key accounts");
+        assert!(!err.contains(SENTINEL));
+    }
+
+    #[test]
+    fn missing_key_fails_closed() {
+        let conn = migrated_conn();
+        let ws = workspace::create(&conn, "W", "mixed").unwrap().id;
+        let acct = account(&conn, &ws, "anthropic"); // key never stored
+        let store = temp_store();
+
+        let claude = find_adapter("claude-code").unwrap();
+        let err = resolve_session_env(&claude, Some(&acct), &store).unwrap_err();
+        assert_eq!(err, "Stored key for this account is missing");
+    }
+
+    #[test]
+    fn load_session_account_scopes_to_workspace() {
+        let conn = migrated_conn();
+        let ws_a = workspace::create(&conn, "A", "mixed").unwrap().id;
+        let ws_b = workspace::create(&conn, "B", "mixed").unwrap().id;
+        let acct = account(&conn, &ws_a, "anthropic");
+
+        assert!(load_session_account(&conn, None, &ws_a).unwrap().is_none());
+        assert!(load_session_account(&conn, Some(&acct.id), &ws_a)
+            .unwrap()
+            .is_some());
+        // Account belongs to ws_a, not ws_b -> rejected.
+        assert!(load_session_account(&conn, Some(&acct.id), &ws_b).is_err());
+        // Nonexistent id -> rejected.
+        assert!(load_session_account(&conn, Some("nope"), &ws_a).is_err());
+    }
 }
