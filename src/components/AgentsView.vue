@@ -18,6 +18,7 @@ const newWorktreeId = ref("");
 const newAdapterId = ref("");
 const newAccountId = ref("");
 const newGoal = ref("");
+const newMode = ref("plan");
 const starting = ref(false);
 
 onMounted(async () => {
@@ -55,6 +56,7 @@ const accountLabel = (id: string | null) =>
 watch(newAdapterId, () => {
   newAccountId.value = "";
   newGoal.value = "";
+  newMode.value = "plan";
 });
 
 // Agent tabs persist in memory for the whole app session, but each belongs to one
@@ -75,6 +77,7 @@ watch(
     newWorktreeId.value = "";
     newAccountId.value = "";
     newGoal.value = "";
+    newMode.value = "plan";
 
     const remembered = newId ? store.lastActiveByWorkspace[newId] : null;
     if (remembered && visibleTabs.value.some((t) => t.session.id === remembered)) {
@@ -97,6 +100,7 @@ async function openTerminal() {
       newAdapterId.value,
       newAccountId.value || null,
       selectedIsSdk.value ? newGoal.value.trim() || null : null,
+      selectedIsSdk.value ? newMode.value : null,
       80,
       24,
     );
@@ -165,14 +169,27 @@ async function openTerminal() {
             {{ acct.display_name }}
           </option>
         </select>
+        <select
+          v-if="selectedIsSdk"
+          v-model="newMode"
+          class="re-select"
+          data-size="sm"
+          aria-label="Agent mode"
+        >
+          <option value="plan">Plan</option>
+          <option value="edit">Edit</option>
+        </select>
         <textarea
           v-if="selectedIsSdk"
           v-model="newGoal"
           class="re-input new__goal"
           rows="2"
-          placeholder="What should the agent plan?"
+          placeholder="What should the agent do?"
           aria-label="Agent goal"
         ></textarea>
+        <p v-if="selectedIsSdk && newMode === 'edit'" class="muted new__hint">
+          Edit mode applies file changes but can't run builds or tests; the review verifies.
+        </p>
         <button
           class="re-button"
           data-variant="brand"
@@ -215,7 +232,7 @@ async function openTerminal() {
             Stop
           </button>
         </div>
-        <SdkRunView v-if="t.session.kind === 'sdk'" :session-id="t.session.id" />
+        <SdkRunView v-if="t.session.kind === 'sdk'" :session="t.session" />
         <TerminalTab v-else-if="t.session.kind === 'pty'" :session-id="t.session.id" />
       </div>
     </div>
@@ -275,6 +292,11 @@ async function openTerminal() {
 .new__goal {
   flex-basis: 100%;
   resize: vertical;
+}
+.new__hint {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+  margin: 0;
 }
 .agents__pane {
   flex: 1;

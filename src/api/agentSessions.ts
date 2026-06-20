@@ -14,6 +14,7 @@ export function startAgentSession(
   adapterId: string,
   accountId: string | null,
   prompt: string | null,
+  mode: string | null,
   cols: number,
   rows: number,
 ): Promise<AgentSession> {
@@ -22,6 +23,7 @@ export function startAgentSession(
     adapterId,
     accountId,
     prompt,
+    mode,
     cols,
     rows,
   });

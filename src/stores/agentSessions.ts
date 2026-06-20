@@ -1,7 +1,13 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import { listen } from "@tauri-apps/api/event";
-import type { AgentAdapter, AgentExit, AgentSdkEvent, AgentSession, SdkEvent } from "../types/agentSession";
+import type {
+  AgentAdapter,
+  AgentExit,
+  AgentSdkEvent,
+  AgentSession,
+  SdkEvent,
+} from "../types/agentSession";
 import * as api from "../api/agentSessions";
 
 /** An open terminal tab: a started session plus its current status. */
@@ -70,11 +76,20 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     adapterId: string,
     accountId: string | null,
     prompt: string | null,
+    mode: string | null,
     cols: number,
     rows: number,
   ) {
     await ensureListeners();
-    const session = await api.startAgentSession(codingWorkspaceId, adapterId, accountId, prompt, cols, rows);
+    const session = await api.startAgentSession(
+      codingWorkspaceId,
+      adapterId,
+      accountId,
+      prompt,
+      mode,
+      cols,
+      rows,
+    );
     tabs.value.push({ session });
     activeId.value = session.id;
     return session;
