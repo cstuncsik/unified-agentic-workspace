@@ -6,6 +6,7 @@ import { useWorkspacesStore } from "../stores/workspaces";
 import { useProviderAccountsStore } from "../stores/providerAccounts";
 import { useToast } from "../composables/useToast";
 import TerminalTab from "./TerminalTab.vue";
+import SdkRunView from "./SdkRunView.vue";
 
 const store = useAgentSessionsStore();
 const coding = useCodingWorkspacesStore();
@@ -16,6 +17,7 @@ const toast = useToast();
 const newWorktreeId = ref("");
 const newAdapterId = ref("");
 const newAccountId = ref("");
+const newGoal = ref("");
 const starting = ref(false);
 
 onMounted(async () => {
@@ -23,8 +25,15 @@ onMounted(async () => {
   if (store.adapters.length > 0) newAdapterId.value = store.adapters[0].id;
 });
 
+const adapterKind = (id: string) => store.adapters.find((a) => a.id === id)?.kind ?? "pty";
+const selectedIsSdk = computed(() => adapterKind(newAdapterId.value) === "sdk");
+
 const canStart = computed(
-  () => newWorktreeId.value !== "" && newAdapterId.value !== "" && !starting.value,
+  () =>
+    newWorktreeId.value !== "" &&
+    newAdapterId.value !== "" &&
+    !starting.value &&
+    (!selectedIsSdk.value || (newGoal.value.trim() !== "" && newAccountId.value !== "")),
 );
 
 const worktreeLabel = (id: string) => {
@@ -45,6 +54,7 @@ const accountLabel = (id: string | null) =>
 // valid accounts — differ); a stale account would fail the provider check.
 watch(newAdapterId, () => {
   newAccountId.value = "";
+  newGoal.value = "";
 });
 
 // Agent tabs persist in memory for the whole app session, but each belongs to one
@@ -64,6 +74,7 @@ watch(
     if (oldId) store.lastActiveByWorkspace[oldId] = store.activeId;
     newWorktreeId.value = "";
     newAccountId.value = "";
+    newGoal.value = "";
 
     const remembered = newId ? store.lastActiveByWorkspace[newId] : null;
     if (remembered && visibleTabs.value.some((t) => t.session.id === remembered)) {
@@ -81,7 +92,14 @@ async function openTerminal() {
   starting.value = true;
   try {
     // 80x24 is a safe initial size; the TerminalTab fits + resizes on mount.
-    await store.start(newWorktreeId.value, newAdapterId.value, newAccountId.value || null, 80, 24);
+    await store.start(
+      newWorktreeId.value,
+      newAdapterId.value,
+      newAccountId.value || null,
+      selectedIsSdk.value ? newGoal.value.trim() || null : null,
+      80,
+      24,
+    );
   } catch (e) {
     toast.error(String(e));
   } finally {
@@ -147,6 +165,14 @@ async function openTerminal() {
             {{ acct.display_name }}
           </option>
         </select>
+        <textarea
+          v-if="selectedIsSdk"
+          v-model="newGoal"
+          class="re-input new__goal"
+          rows="2"
+          placeholder="What should the agent plan?"
+          aria-label="Agent goal"
+        ></textarea>
         <button
           class="re-button"
           data-variant="brand"
@@ -189,7 +215,8 @@ async function openTerminal() {
             Stop
           </button>
         </div>
-        <TerminalTab :session-id="t.session.id" />
+        <SdkRunView v-if="t.session.kind === 'sdk'" :session-id="t.session.id" />
+        <TerminalTab v-else-if="t.session.kind === 'pty'" :session-id="t.session.id" />
       </div>
     </div>
     <p v-else class="muted">No terminals open. Pick a worktree and a CLI to start one.</p>
@@ -242,7 +269,12 @@ async function openTerminal() {
 }
 .new {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
+}
+.new__goal {
+  flex-basis: 100%;
+  resize: vertical;
 }
 .agents__pane {
   flex: 1;

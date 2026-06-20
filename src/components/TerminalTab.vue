@@ -5,11 +5,9 @@ import { FitAddon } from "@xterm/addon-fit";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import * as api from "../api/agentSessions";
-import { useAgentSessionsStore } from "../stores/agentSessions";
-import type { AgentOutput, AgentExit } from "../types/agentSession";
+import type { AgentOutput } from "../types/agentSession";
 
 const props = defineProps<{ sessionId: string }>();
-const store = useAgentSessionsStore();
 
 const host = ref<HTMLDivElement | null>(null);
 let term: Terminal | null = null;
@@ -51,18 +49,12 @@ onMounted(async () => {
     api.writeAgentSession(props.sessionId, data).catch(() => {});
   });
 
-  // Live output + exit, routed by session id.
+  // Live PTY output, routed by session id. (Exit/status is handled globally in the
+  // store so it works for SDK sessions too, which never mount this component.)
   unlisten.push(
     await listen<AgentOutput>("agent-output", (e) => {
       if (e.payload.session_id === props.sessionId && term) {
         term.write(new Uint8Array(e.payload.bytes));
-      }
-    }),
-  );
-  unlisten.push(
-    await listen<AgentExit>("agent-exit", (e) => {
-      if (e.payload.session_id === props.sessionId) {
-        store.setStatus(props.sessionId, e.payload.status, e.payload.exit_code);
       }
     }),
   );

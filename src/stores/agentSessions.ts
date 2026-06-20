@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
-import type { AgentAdapter, AgentSession } from "../types/agentSession";
+import { listen } from "@tauri-apps/api/event";
+import type { AgentAdapter, AgentExit, AgentSdkEvent, AgentSession, SdkEvent } from "../types/agentSession";
 import * as api from "../api/agentSessions";
 
 /** An open terminal tab: a started session plus its current status. */
@@ -15,8 +16,48 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
   const error = ref<string | null>(null);
   /** The last-focused tab per workspace id, so switching back restores it. */
   const lastActiveByWorkspace = ref<Record<string, string | null>>({});
+  /** Accumulated Claude Agent SDK events per session id (store-owned so events
+   *  that arrive before a view mounts are never lost). */
+  const sdkEvents = ref<Record<string, SdkEvent[]>>({});
+  let sdkListenerStarted = false;
+
+  function parseSdkLine(line: string): SdkEvent | null {
+    try {
+      return JSON.parse(line) as SdkEvent;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Register the global agent-event listeners once. Both the SDK feed stream AND
+   *  the exit/status stream are store-owned so they work for every session kind
+   *  (SDK sessions never mount TerminalTab) and never miss events before a view
+   *  mounts. */
+  async function ensureListeners() {
+    if (sdkListenerStarted) return;
+    sdkListenerStarted = true;
+    await listen<AgentSdkEvent>("agent-sdk-event", (e) => {
+      const ev = parseSdkLine(e.payload.line);
+      if (!ev) return;
+      const id = e.payload.session_id;
+      sdkEvents.value = { ...sdkEvents.value, [id]: [...(sdkEvents.value[id] ?? []), ev] };
+    });
+    await listen<AgentExit>("agent-exit", (e) => {
+      setStatus(e.payload.session_id, e.payload.status, e.payload.exit_code);
+    });
+  }
+
+  /** Replay a finished/reopened SDK session's transcript once into the accumulator. */
+  async function loadSdkTranscript(id: string) {
+    if (sdkEvents.value[id]) return; // already have live state
+    const lines = await api.getAgentSdkTranscript(id);
+    if (sdkEvents.value[id]) return; // live events arrived during the fetch — they win
+    const evs = lines.map(parseSdkLine).filter((x): x is SdkEvent => x !== null);
+    sdkEvents.value = { ...sdkEvents.value, [id]: evs };
+  }
 
   async function loadAdapters() {
+    void ensureListeners();
     try {
       adapters.value = await api.listAgentAdapters();
     } catch (e) {
@@ -28,10 +69,12 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     codingWorkspaceId: string,
     adapterId: string,
     accountId: string | null,
+    prompt: string | null,
     cols: number,
     rows: number,
   ) {
-    const session = await api.startAgentSession(codingWorkspaceId, adapterId, accountId, cols, rows);
+    await ensureListeners();
+    const session = await api.startAgentSession(codingWorkspaceId, adapterId, accountId, prompt, cols, rows);
     tabs.value.push({ session });
     activeId.value = session.id;
     return session;
@@ -72,6 +115,8 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     activeId,
     error,
     lastActiveByWorkspace,
+    sdkEvents,
+    loadSdkTranscript,
     loadAdapters,
     start,
     stop,

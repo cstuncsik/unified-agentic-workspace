@@ -80,6 +80,7 @@ pub fn run() {
             commands::agent_sessions::list_agent_sessions,
             commands::agent_sessions::get_agent_session,
             commands::agent_sessions::get_agent_session_transcript,
+            commands::agent_sessions::get_agent_sdk_transcript,
             commands::agent_sessions::start_agent_session,
             commands::agent_sessions::write_agent_session,
             commands::agent_sessions::resize_agent_session,

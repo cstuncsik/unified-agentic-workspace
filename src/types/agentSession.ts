@@ -13,7 +13,19 @@ export interface AgentAdapter {
   program: string;
   args: string[];
   provider: string | null;
+  kind: string; // "pty" | "sdk"
+  requires_account: boolean;
   capabilities: AgentCapabilities;
+}
+
+/** One streamed Claude Agent SDK message (already redacted by the backend). */
+export interface SdkEvent {
+  type: "assistant" | "tool" | "result" | "error";
+  text?: string;
+  name?: string;
+  summary?: string;
+  message?: string;
+  status?: string;
 }
 
 export interface AgentSession {
@@ -27,6 +39,7 @@ export interface AgentSession {
   transcript_path: string;
   account_id: string | null;
   model_id: string | null;
+  kind: string; // "pty" | "sdk"
   created_at: string;
   updated_at: string;
 }
@@ -41,4 +54,10 @@ export interface AgentExit {
   session_id: string;
   status: string;
   exit_code: number | null;
+}
+
+/** One streamed Claude Agent SDK event line (a redacted NDJSON object). */
+export interface AgentSdkEvent {
+  session_id: string;
+  line: string;
 }

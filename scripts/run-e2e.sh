@@ -62,6 +62,23 @@ exec cat
 AGENT
 chmod +x /tmp/uaw-fake-agent
 
+# A fake Claude Agent SDK sidecar for the SDK e2e: goal via argv ($1), emits canned
+# NDJSON incl. a deliberate $ANTHROPIC_API_KEY echo (to prove the backend redacts
+# it), a non-JSON garbage line (to prove no-crash), a KEY:set/unset presence marker,
+# then a result. Exits 0 (NOT exec cat — it is a one-shot, not a REPL).
+cat >/tmp/uaw-fake-sdk <<'SDK'
+#!/usr/bin/env bash
+goal="$1"
+km=KEY:unset; [ -n "${ANTHROPIC_API_KEY:-}" ] && km=KEY:set
+printf '{"type":"assistant","text":"Planning: %s"}\n' "${goal//\"/}"
+printf '{"type":"tool","name":"Read","summary":"README.md"}\n'
+printf '{"type":"tool","name":"echo","summary":"%s"}\n' "${ANTHROPIC_API_KEY:-none}"
+printf 'this line is not json\n'
+printf '{"type":"tool","name":"probe","summary":"%s"}\n' "$km"
+printf '{"type":"result","status":"success","summary":"Done"}\n'
+SDK
+chmod +x /tmp/uaw-fake-sdk
+
 # Invoke the wdio binary directly (skips pnpm's pre-run deps check). Not exec'd
 # so the EXIT trap still runs to stop Xvfb; set -e propagates wdio's exit code.
 node_modules/.bin/wdio run wdio.conf.ts

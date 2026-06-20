@@ -4,6 +4,7 @@
 //! `UAW_AGENT_BIN` (used by tests to inject a fake interactive program).
 
 pub mod pty;
+pub mod sdk;
 
 use serde::Serialize;
 
@@ -30,6 +31,10 @@ pub struct AgentAdapter {
     /// Higher-precedence ambient vars to blank when injecting, so a stale ambient
     /// credential can't beat the chosen account's key.
     pub clear_env: Vec<&'static str>,
+    /// "pty" (interactive terminal) | "sdk" (headless Node sidecar).
+    pub kind: &'static str,
+    /// SDK adapters require a bound account (no silent ambient identity).
+    pub requires_account: bool,
     pub capabilities: AgentCapabilities,
 }
 
@@ -55,6 +60,8 @@ pub fn adapters() -> Vec<AgentAdapter> {
             provider: Some("anthropic"),
             api_key_env: Some("ANTHROPIC_API_KEY"),
             clear_env: vec!["ANTHROPIC_AUTH_TOKEN"],
+            kind: "pty",
+            requires_account: false,
             capabilities: full_capabilities(),
         },
         AgentAdapter {
@@ -65,6 +72,8 @@ pub fn adapters() -> Vec<AgentAdapter> {
             provider: Some("openai"),
             api_key_env: Some("OPENAI_API_KEY"),
             clear_env: vec![],
+            kind: "pty",
+            requires_account: false,
             capabilities: full_capabilities(),
         },
         AgentAdapter {
@@ -75,6 +84,20 @@ pub fn adapters() -> Vec<AgentAdapter> {
             provider: None,
             api_key_env: None,
             clear_env: vec![],
+            kind: "pty",
+            requires_account: false,
+            capabilities: full_capabilities(),
+        },
+        AgentAdapter {
+            id: "claude-agent-sdk",
+            name: "Claude Agent SDK",
+            program: "", // resolved at runtime via resolve_sdk_sidecar()
+            args: vec![],
+            provider: Some("anthropic"),
+            api_key_env: Some("ANTHROPIC_API_KEY"),
+            clear_env: vec!["ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"],
+            kind: "sdk",
+            requires_account: true,
             capabilities: full_capabilities(),
         },
     ]
@@ -92,6 +115,24 @@ pub fn resolve_program(adapter: &AgentAdapter) -> String {
         Ok(v) if !v.trim().is_empty() => v,
         _ => adapter.program.to_string(),
     }
+}
+
+/// The Node sidecar entry to spawn for the SDK adapter: `UAW_AGENT_SDK_SIDECAR`
+/// overrides (so e2e injects a fake) else the bundled default. The default is
+/// resolved to an ABSOLUTE path against the backend's cwd, because the child is
+/// spawned with its working directory set to the worktree — a relative program
+/// path would otherwise resolve against the worktree and fail. (Bundling the
+/// sidecar as a packaged resource is a later slice.)
+pub fn resolve_sdk_sidecar() -> String {
+    if let Ok(v) = std::env::var("UAW_AGENT_SDK_SIDECAR") {
+        if !v.trim().is_empty() {
+            return v;
+        }
+    }
+    let rel = "sidecar/claude-agent-sdk/index.mjs";
+    std::env::current_dir()
+        .map(|d| d.join(rel).to_string_lossy().into_owned())
+        .unwrap_or_else(|_| rel.to_string())
 }
 
 #[cfg(test)]
@@ -120,6 +161,22 @@ mod tests {
         let gemini = find_adapter("gemini").unwrap();
         assert_eq!(gemini.provider, None);
         assert_eq!(gemini.api_key_env, None);
+
+        let sdk = find_adapter("claude-agent-sdk").unwrap();
+        assert_eq!(sdk.kind, "sdk");
+        assert!(sdk.requires_account);
+        assert_eq!(sdk.provider, Some("anthropic"));
+        assert_eq!(claude.kind, "pty");
+        assert!(!claude.requires_account);
+    }
+
+    #[test]
+    fn resolve_sdk_sidecar_prefers_env() {
+        std::env::remove_var("UAW_AGENT_SDK_SIDECAR");
+        assert!(resolve_sdk_sidecar().ends_with("index.mjs"));
+        std::env::set_var("UAW_AGENT_SDK_SIDECAR", "/tmp/fake-sdk");
+        assert_eq!(resolve_sdk_sidecar(), "/tmp/fake-sdk");
+        std::env::remove_var("UAW_AGENT_SDK_SIDECAR");
     }
 
     #[test]
