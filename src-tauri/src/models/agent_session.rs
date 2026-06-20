@@ -16,12 +16,13 @@ pub struct AgentSession {
     pub account_id: Option<String>,
     pub model_id: Option<String>,
     pub kind: String,
+    pub mode: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
 
 const COLUMNS: &str = "id, workspace_id, coding_workspace_id, adapter_id, command, status, \
-                       exit_code, transcript_path, account_id, model_id, kind, created_at, updated_at";
+                       exit_code, transcript_path, account_id, model_id, kind, mode, created_at, updated_at";
 
 fn from_row(row: &Row) -> rusqlite::Result<AgentSession> {
     Ok(AgentSession {
@@ -36,6 +37,7 @@ fn from_row(row: &Row) -> rusqlite::Result<AgentSession> {
         account_id: row.get("account_id")?,
         model_id: row.get("model_id")?,
         kind: row.get("kind")?,
+        mode: row.get("mode")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -53,16 +55,17 @@ pub fn create(
     account_id: Option<&str>,
     model_id: Option<&str>,
     kind: &str,
+    mode: Option<&str>,
 ) -> rusqlite::Result<AgentSession> {
     let now = now_rfc3339();
     conn.execute(
         "INSERT INTO agent_sessions
            (id, workspace_id, coding_workspace_id, adapter_id, command, status,
-            exit_code, transcript_path, account_id, model_id, kind, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, 'running', NULL, ?6, ?7, ?8, ?9, ?10, ?10)",
+            exit_code, transcript_path, account_id, model_id, kind, mode, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'running', NULL, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
         params![
             id, workspace_id, coding_workspace_id, adapter_id, command,
-            transcript_path, account_id, model_id, kind, now
+            transcript_path, account_id, model_id, kind, mode, now
         ],
     )?;
     Ok(get(conn, id)?.expect("agent session exists immediately after insert"))
@@ -157,7 +160,7 @@ mod tests {
     }
 
     fn make(conn: &Connection, ws: &str, cw: &str) -> AgentSession {
-        create(conn, &new_id(), ws, cw, "claude-code", "claude", "/tmp/t.log", None, None, "pty").unwrap()
+        create(conn, &new_id(), ws, cw, "claude-code", "claude", "/tmp/t.log", None, None, "pty", None).unwrap()
     }
 
     #[test]
@@ -165,11 +168,26 @@ mod tests {
         let conn = migrated_conn();
         let (ws, cw) = fixtures(&conn);
         let s = create(
-            &conn, &new_id(), &ws, &cw, "claude-agent-sdk", "sidecar", "/tmp/t.log", None, None, "sdk",
+            &conn, &new_id(), &ws, &cw, "claude-agent-sdk", "sidecar", "/tmp/t.log", None, None, "sdk", None,
         )
         .unwrap();
         assert_eq!(s.kind, "sdk");
         assert_eq!(get(&conn, &s.id).unwrap().unwrap().kind, "sdk");
+    }
+
+    #[test]
+    fn create_persists_mode() {
+        let conn = migrated_conn();
+        let (ws, cw) = fixtures(&conn);
+        let s = create(
+            &conn, &new_id(), &ws, &cw, "claude-agent-sdk", "sidecar", "/tmp/t.log",
+            None, None, "sdk", Some("edit"),
+        )
+        .unwrap();
+        assert_eq!(s.mode.as_deref(), Some("edit"));
+        assert_eq!(get(&conn, &s.id).unwrap().unwrap().mode.as_deref(), Some("edit"));
+        // PTY sessions carry no mode.
+        assert_eq!(make(&conn, &ws, &cw).mode, None);
     }
 
     #[test]
@@ -235,6 +253,7 @@ mod tests {
             Some(&acct_id),
             Some("some-model"),
             "pty",
+            None,
         )
         .unwrap();
         assert_eq!(s.account_id.as_deref(), Some(acct_id.as_str()));

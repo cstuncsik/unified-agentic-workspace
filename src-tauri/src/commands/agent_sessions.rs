@@ -222,6 +222,7 @@ pub fn start_agent_session(
             account_row_id,
             None,
             "pty",
+            None,
         )
         .map_err(|e| e.to_string())?
     };
@@ -370,6 +371,7 @@ fn start_sdk_session(
             account_row_id.as_deref(),
             None,
             "sdk",
+            None,
         )
         .map_err(|e| e.to_string())?
     };
