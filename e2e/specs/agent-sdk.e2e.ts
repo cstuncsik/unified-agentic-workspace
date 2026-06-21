@@ -162,7 +162,8 @@ describe("claude agent sdk (plan-only)", () => {
       timeout: 15_000,
       timeoutMsg: "model select never populated",
     });
-    expect(await modelSelect.getText()).toContain("Default (SDK chooses)");
+    // The default option is selected (value "") before the user picks a model.
+    expect(await modelSelect.getValue()).toBe("");
     await modelSelect.selectByVisibleText("Claude Sonnet 4.5");
 
     await (await $('[aria-label="Agent goal"]')).setValue("summarize with sonnet");
