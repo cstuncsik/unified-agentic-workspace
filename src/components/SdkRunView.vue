@@ -82,7 +82,11 @@ async function reviewChanges() {
 
 <template>
   <div class="sdk-wrap">
-    <p class="muted sdk-model" data-testid="sdk-model">
+    <p
+      class="muted sdk-model"
+      data-testid="sdk-model"
+      :data-dbg="`m=${session.mode}|c=${diff?.is_clean ?? 'u'}|e=${diff?.error ?? '-'}|f=${finished}`"
+    >
       Model: {{ session.model_id ?? "Default" }}
     </p>
     <div class="sdk-feed" data-testid="agent-sdk-feed">
