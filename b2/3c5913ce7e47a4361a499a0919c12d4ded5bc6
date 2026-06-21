@@ -1,0 +1,27 @@
+e2e/specs/agent-sdk.e2e.ts
+  s_b49f7388e23022::t_8f553bbcd4acf9 14-20
+  s_b49f7388e23022::t_25a8f21185b13d 152-160,162-176
+  s_b49f7388e23022::t_9e95c30fcb9ef9 161
+wdio.conf.ts
+  s_b49f7388e23022::t_10e694787d1ac7 62
+scripts/run-e2e.sh
+  s_b49f7388e23022::t_14ca9a425ab3e0 93-100
+  s_b49f7388e23022::t_ef47cd31c9fe53 75
+  s_b49f7388e23022::t_1464187a36d1d5 88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "b23c5913ce7e47a4361a499a0919c12d4ded5bc6",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
