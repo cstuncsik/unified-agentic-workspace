@@ -8,6 +8,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const goal = process.argv[2] ?? "";
 const mode = process.argv[3] === "edit" ? "edit" : "plan";
+const model = process.argv[4] ?? "";
 const cwd = process.cwd();
 // Canonical worktree root, resolved once, for the worktree-write boundary check.
 let realCwd;
@@ -71,6 +72,7 @@ const options = {
   // Spread our env so the grandchild CLI inherits the injected key, and blank
   // ambient tokens that would otherwise outrank it.
   env: { ...process.env, ANTHROPIC_AUTH_TOKEN: "", CLAUDE_CODE_OAUTH_TOKEN: "" },
+  ...(model ? { model } : {}),
   ...(mode === "edit" && {
     hooks: { PreToolUse: [{ matcher: "Write|Edit", hooks: [boundToWorktree] }] },
   }),
