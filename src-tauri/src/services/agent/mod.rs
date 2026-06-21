@@ -122,8 +122,9 @@ pub fn resolve_program(adapter: &AgentAdapter) -> String {
 /// with cwd=worktree, so a relative program path would resolve there and fail).
 fn resolve_sidecar_script(env_var: &str, rel: &str) -> String {
     if let Ok(v) = std::env::var(env_var) {
-        if !v.trim().is_empty() {
-            return v;
+        let trimmed = v.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
         }
     }
     std::env::current_dir()
@@ -191,8 +192,9 @@ mod tests {
         std::env::remove_var("UAW_AGENT_SDK_MODELS");
         assert!(resolve_sdk_models_sidecar().ends_with("list-models.mjs"));
         std::env::set_var("UAW_AGENT_SDK_MODELS", "/tmp/fake-models");
-        assert_eq!(resolve_sdk_models_sidecar(), "/tmp/fake-models");
+        let resolved = resolve_sdk_models_sidecar();
         std::env::remove_var("UAW_AGENT_SDK_MODELS");
+        assert_eq!(resolved, "/tmp/fake-models");
     }
 
     #[test]

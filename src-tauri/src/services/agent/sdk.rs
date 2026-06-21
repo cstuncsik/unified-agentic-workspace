@@ -47,7 +47,7 @@ pub fn parse_models(stdout: &str) -> Result<Vec<ModelInfo>, String> {
     Ok(data
         .iter()
         .filter_map(|m| {
-            let id = m.get("id").and_then(|x| x.as_str())?;
+            let id = m.get("id").and_then(|x| x.as_str()).filter(|s| !s.is_empty())?;
             let display_name = m.get("display_name").and_then(|x| x.as_str()).unwrap_or(id);
             Some(ModelInfo {
                 id: id.to_string(),
@@ -222,6 +222,8 @@ pub fn spawn(
 /// finished, so it can't kill a reused PID. If the kill fires, the result is `Err`
 /// regardless of captured stdout. Non-zero exit / spawn failure → `Err`. Every `Err`
 /// is the fixed opaque "Failed to list models".
+/// The timeout is a backstop for a wedged helper; the intended caller writes its
+/// output then exits immediately, so the kill window is effectively zero.
 #[allow(dead_code)]
 pub fn spawn_oneshot(
     program: &str,
@@ -430,5 +432,11 @@ mod tests {
         let m = parse_models(r#"{"data":[null,42,{"id":"x"}]}"#).unwrap();
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].id, "x");
+    }
+    #[test]
+    fn parse_models_skips_empty_id() {
+        let m = parse_models(r#"{"data":[{"id":""},{"id":"real"}]}"#).unwrap();
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].id, "real");
     }
 }
