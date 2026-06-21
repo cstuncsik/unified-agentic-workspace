@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-06-21-agent-sdk-model-picker-design.md
+  s_b49f7388e23022::t_b31ca1ad13ac5f 1-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "2f2de799fcd48758971e0ff890cf6524bbe0e823",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
