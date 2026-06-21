@@ -137,6 +137,7 @@ pub fn resolve_sdk_sidecar() -> String {
 }
 
 /// The Node helper that lists a provider's models (`UAW_AGENT_SDK_MODELS` overrides).
+#[allow(dead_code)]
 pub fn resolve_sdk_models_sidecar() -> String {
     resolve_sidecar_script("UAW_AGENT_SDK_MODELS", "sidecar/claude-agent-sdk/list-models.mjs")
 }
