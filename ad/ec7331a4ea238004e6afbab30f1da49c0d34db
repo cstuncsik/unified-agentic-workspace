@@ -1,0 +1,22 @@
+src/components/SdkRunView.vue
+  s_b49f7388e23022::t_a83c0284bee842 33-39,49,55,58,62-63,65
+  s_b49f7388e23022::t_c0948e92716022 92
+e2e/specs/agent-sdk.e2e.ts
+  s_b49f7388e23022::t_998f2f23f6a12e 132-133,135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "adec7331a4ea238004e6afbab30f1da49c0d34db",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
