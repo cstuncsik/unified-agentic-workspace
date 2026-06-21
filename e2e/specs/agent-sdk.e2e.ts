@@ -18,15 +18,6 @@ const allFeedsText = () =>
       .join("\n"),
   );
 
-// The active tab's feed (others are display:none → offsetParent null). Used to wait
-// on the session that was just launched, regardless of how many tabs are mounted.
-const visibleFeedText = () =>
-  browser.execute(() => {
-    const feeds = [...document.querySelectorAll('[data-testid="agent-sdk-feed"]')];
-    const visible = feeds.find((f) => (f as HTMLElement).offsetParent !== null);
-    return visible?.textContent ?? "";
-  });
-
 /**
  * Milestone 10b-2b slice 1: a plan-only Claude Agent SDK run via a fake Node
  * sidecar (UAW_AGENT_SDK_SIDECAR). Proves the structured feed renders, the
@@ -138,26 +129,10 @@ describe("claude agent sdk (plan-only)", () => {
     await (await $('[aria-label="Agent goal"]')).setValue("edit the readme");
     await (await $("button*=New terminal")).click();
 
-    // First wait for the edit session to finish (the active tab's feed shows the
-    // result), THEN for the review CTA — it only renders after the run completes and
-    // the worktree diff resolves. Splitting the waits is robust to CI's slower webkit
-    // (a single 20s wait on the whole chain flaked there).
-    await browser.waitUntil(async () => (await visibleFeedText()).includes("Done"), {
-      timeout: 30_000,
-      timeoutMsg: "edit session did not finish",
-    });
-    for (let i = 0; i < 12; i++) {
-      const d = await browser.execute(() => {
-        const els = [...document.querySelectorAll('[data-testid="sdk-model"]')];
-        const vis = els.find((el) => (el as HTMLElement).offsetParent !== null);
-        return vis?.getAttribute("data-dbg") ?? "no-visible";
-      });
-      // eslint-disable-next-line no-console
-      console.log(`EDIT-DBG[${i}]`, d);
-      await browser.pause(2000);
-    }
+    // The CTA renders once the agent emits its result (its terminal event) and the
+    // worktree diff resolves — no need to wait on the laggy OS process-exit event.
     const cta = await $('[data-testid="sdk-review-cta"]');
-    await cta.waitForExist({ timeout: 20_000 });
+    await cta.waitForExist({ timeout: 25_000 });
     expect(await cta.getText()).toContain("changed 1 file");
 
     // Click via JS: a transient bottom-corner toast (e.g. "Worktree created" from the

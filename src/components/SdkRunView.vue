@@ -30,6 +30,13 @@ const text = (e: SdkEvent) => e.text ?? e.summary ?? e.message ?? "";
 // must not falsely offer one.
 const isEdit = computed(() => props.session.mode === "edit");
 const finished = computed(() => props.session.status !== "running");
+// The agent is "done" when it emits a terminal event (result/error) — its logical
+// completion, which is more reliable than the OS process-exit event (status flips on
+// `agent-exit`, which can lag badly until the child is reaped, especially under CI
+// load). Either signal counts.
+const completed = computed(
+  () => finished.value || events.value.some((e) => e.type === "result" || e.type === "error"),
+);
 const diff = computed(() => coding.diffs[props.session.coding_workspace_id]);
 const changedCount = computed(() => diff.value?.changed_files.length ?? 0);
 // Collapses the CTA after a successful completion so a second click can't double-
@@ -39,23 +46,23 @@ const reviewed = ref(false);
 const showReview = computed(
   () =>
     isEdit.value &&
-    finished.value &&
+    completed.value &&
     !!diff.value &&
     !diff.value.is_clean &&
     !diff.value.error &&
     !reviewed.value,
 );
-// Surface a diff-load failure for a finished edit run rather than silently hiding
+// Surface a diff-load failure for a completed edit run rather than silently hiding
 // the footer (showReview already excludes the error case).
 const diffError = computed(() =>
-  isEdit.value && finished.value ? (diff.value?.error ?? null) : null,
+  isEdit.value && completed.value ? (diff.value?.error ?? null) : null,
 );
 const completing = ref(false);
 
-// One-shot: when an edit session finishes, fetch the worktree diff once (covers
-// reopening an already-finished session via immediate).
+// One-shot: when an edit session completes (result event or process exit), fetch the
+// worktree diff once (immediate covers reopening an already-completed session).
 watch(
-  finished,
+  completed,
   async (done) => {
     if (done && isEdit.value) {
       await coding.refreshDiff(props.session.coding_workspace_id);
@@ -82,11 +89,7 @@ async function reviewChanges() {
 
 <template>
   <div class="sdk-wrap">
-    <p
-      class="muted sdk-model"
-      data-testid="sdk-model"
-      :data-dbg="`m=${session.mode}|st=${session.status}|c=${diff?.is_clean ?? 'u'}|n=${diff?.changed_files?.length ?? '-'}|e=${diff?.error ?? '-'}|f=${finished}|ev=${events.length}`"
-    >
+    <p class="muted sdk-model" data-testid="sdk-model">
       Model: {{ session.model_id ?? "Default" }}
     </p>
     <div class="sdk-feed" data-testid="agent-sdk-feed">
