@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-21-agent-sdk-model-picker.md
+  s_b49f7388e23022::t_51ea45f3bcd7fb 1-917
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "ded175de5a7da3f712c5487744d41b844a592562",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
