@@ -67,10 +67,20 @@ watch(newAdapterId, () => {
   newModelId.value = "";
 });
 
-// When the account changes, reset the model and lazy-load that account's models.
+// When the account changes, reset the model and lazy-load that account's models
+// (only for an SDK adapter with a worktree selected — the command needs both).
 watch(newAccountId, (val) => {
   newModelId.value = "";
-  if (val) accountModels.loadModels(newWorktreeId.value, val);
+  if (val && selectedIsSdk.value && newWorktreeId.value) {
+    accountModels.loadModels(newWorktreeId.value, val);
+  }
+});
+
+// If the worktree is chosen after the account, fetch models then (cache-hit otherwise).
+watch(newWorktreeId, (val) => {
+  if (val && selectedIsSdk.value && newAccountId.value) {
+    accountModels.loadModels(val, newAccountId.value);
+  }
 });
 
 // Agent tabs persist in memory for the whole app session, but each belongs to one

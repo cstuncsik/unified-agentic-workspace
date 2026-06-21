@@ -13,7 +13,8 @@ export const useAccountModelsStore = defineStore("accountModels", () => {
   const inFlight = new Set<string>();
 
   async function loadModels(codingWorkspaceId: string, accountId: string) {
-    if (!accountId || modelsByAccount.value[accountId] || inFlight.has(accountId)) return;
+    if (!accountId || modelsByAccount.value[accountId] !== undefined || inFlight.has(accountId))
+      return;
     inFlight.add(accountId);
     loadingByAccount.value = { ...loadingByAccount.value, [accountId]: true };
     errorByAccount.value = { ...errorByAccount.value, [accountId]: null };
