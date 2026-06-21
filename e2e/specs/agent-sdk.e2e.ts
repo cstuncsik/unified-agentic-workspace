@@ -170,9 +170,12 @@ describe("claude agent sdk (plan-only)", () => {
     await (await $("button*=New terminal")).click();
 
     // The chosen model id reached the sidecar (argv[4]) → the fake echoed it to the feed.
-    await browser.waitUntil(async () => (await allFeedsText()).includes("MODEL:claude-sonnet-4-5"), {
-      timeout: 15_000,
-      timeoutMsg: "expected the chosen model to reach the sidecar",
-    });
+    await browser.waitUntil(
+      async () => (await allFeedsText()).includes("MODEL:claude-sonnet-4-5"),
+      {
+        timeout: 15_000,
+        timeoutMsg: "expected the chosen model to reach the sidecar",
+      },
+    );
   });
 });
