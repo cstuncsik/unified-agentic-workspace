@@ -9,7 +9,7 @@ use std::io::BufRead;
 use std::io::Read;
 use std::path::Path;
 use std::process::{Child, ChildStdout, Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 /// Mask the injected API key value anywhere it appears in a line before the line
@@ -216,13 +216,14 @@ pub fn spawn(
 
 /// Run a short-lived helper, capture all stdout, enforce a wall-clock timeout.
 /// Unlike `spawn` (which streams + owns a process group), this is request/response:
-/// stderr is discarded, no handle is returned. A watcher thread kills the child after
-/// `timeout` — but only while holding the `done` lock and only if the reader hasn't
-/// finished, so it can't kill a reused PID. If the kill fires, the result is `Err`
-/// regardless of captured stdout. Non-zero exit / spawn failure → `Err`. Every `Err`
-/// is the fixed opaque "Failed to list models".
-/// The timeout is a backstop for a wedged helper; the intended caller writes its
-/// output then exits immediately, so the kill window is effectively zero.
+/// stderr is discarded, no handle is returned. A watcher thread waits on a condvar
+/// up to `timeout`; the reader signals it the instant the child's stdout closes, so
+/// a fast helper returns immediately (no full-timeout wait). On a real timeout the
+/// watcher kills the child (it can't hit a reused PID — the kill happens under the
+/// `done` lock, before `child.wait()` reaps). A killed run returns `Err` regardless
+/// of captured stdout. Non-zero exit / spawn failure → `Err`. Every `Err` is the
+/// fixed opaque "Failed to list models". The timeout is a backstop for a wedged
+/// helper; the intended caller writes its output then exits immediately.
 pub fn spawn_oneshot(
     program: &str,
     args: &[&str],
@@ -244,20 +245,25 @@ pub fn spawn_oneshot(
     let mut stdout = child.stdout.take().ok_or_else(|| ERR.to_string())?;
     let pid = child.id();
 
-    let done = Arc::new(Mutex::new(false));
+    // (done, cvar): `done` becomes true when the reader finishes (child exited) OR
+    // when the watcher kills on timeout — whichever first, under the lock.
+    let state = Arc::new((Mutex::new(false), Condvar::new()));
     let killed = Arc::new(Mutex::new(false));
     let watcher = {
-        let (done, killed) = (done.clone(), killed.clone());
+        let (state, killed) = (state.clone(), killed.clone());
         std::thread::spawn(move || {
-            std::thread::sleep(timeout);
-            let mut d = done.lock().unwrap();
-            if !*d {
+            let (lock, cvar) = &*state;
+            let done = lock.lock().unwrap();
+            let (mut done, wait_res) = cvar
+                .wait_timeout_while(done, timeout, |d| !*d)
+                .unwrap();
+            if wait_res.timed_out() && !*done {
                 *killed.lock().unwrap() = true;
                 #[cfg(unix)]
                 unsafe {
                     libc::kill(pid as i32, libc::SIGKILL);
                 }
-                *d = true;
+                *done = true;
             }
         })
     };
@@ -265,7 +271,9 @@ pub fn spawn_oneshot(
     let mut out = String::new();
     let read_res = stdout.read_to_string(&mut out);
     {
-        *done.lock().unwrap() = true;
+        let (lock, cvar) = &*state;
+        *lock.lock().unwrap() = true;
+        cvar.notify_all();
     }
     let status = child.wait();
     let _ = watcher.join();
