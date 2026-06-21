@@ -82,6 +82,9 @@ async function reviewChanges() {
 
 <template>
   <div class="sdk-wrap">
+    <p class="muted sdk-model" data-testid="sdk-model">
+      Model: {{ session.model_id ?? "Default" }}
+    </p>
     <div class="sdk-feed" data-testid="agent-sdk-feed">
       <div
         v-for="(e, i) in events"
@@ -160,6 +163,11 @@ async function reviewChanges() {
 .sdk-differr {
   padding: 0.5rem;
   margin: 0;
+  font-size: 0.8rem;
+}
+.sdk-model {
+  margin: 0;
+  padding: 0.25rem 0.5rem;
   font-size: 0.8rem;
 }
 .muted {

@@ -1,3 +1,9 @@
+/** A pickable model for an SDK session (from the provider's models API). */
+export interface ModelInfo {
+  id: string;
+  display_name: string;
+}
+
 export interface AgentCapabilities {
   streaming: boolean;
   tool_use: boolean;

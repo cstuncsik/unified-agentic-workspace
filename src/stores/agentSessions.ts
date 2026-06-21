@@ -77,6 +77,7 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
     accountId: string | null,
     prompt: string | null,
     mode: string | null,
+    model: string | null,
     cols: number,
     rows: number,
   ) {
@@ -87,6 +88,7 @@ export const useAgentSessionsStore = defineStore("agentSessions", () => {
       accountId,
       prompt,
       mode,
+      model,
       cols,
       rows,
     );
