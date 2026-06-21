@@ -6,8 +6,11 @@
 
 use serde::Serialize;
 use std::io::BufRead;
+use std::io::Read;
 use std::path::Path;
 use std::process::{Child, ChildStdout, Command, Stdio};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// Mask the injected API key value anywhere it appears in a line before the line
 /// is persisted or emitted. The SDK agent authors content we relay, so a
@@ -212,6 +215,70 @@ pub fn spawn(
     })
 }
 
+/// Run a short-lived helper, capture all stdout, enforce a wall-clock timeout.
+/// Unlike `spawn` (which streams + owns a process group), this is request/response:
+/// stderr is discarded, no handle is returned. A watcher thread kills the child after
+/// `timeout` — but only while holding the `done` lock and only if the reader hasn't
+/// finished, so it can't kill a reused PID. If the kill fires, the result is `Err`
+/// regardless of captured stdout. Non-zero exit / spawn failure → `Err`. Every `Err`
+/// is the fixed opaque "Failed to list models".
+#[allow(dead_code)]
+pub fn spawn_oneshot(
+    program: &str,
+    args: &[&str],
+    cwd: &Path,
+    env: &[(String, String)],
+    timeout: Duration,
+) -> Result<String, String> {
+    const ERR: &str = "Failed to list models";
+    let mut cmd = Command::new(program);
+    cmd.args(args)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    let mut child = cmd.spawn().map_err(|_| ERR.to_string())?;
+    let mut stdout = child.stdout.take().ok_or_else(|| ERR.to_string())?;
+    let pid = child.id();
+
+    let done = Arc::new(Mutex::new(false));
+    let killed = Arc::new(Mutex::new(false));
+    let watcher = {
+        let (done, killed) = (done.clone(), killed.clone());
+        std::thread::spawn(move || {
+            std::thread::sleep(timeout);
+            let mut d = done.lock().unwrap();
+            if !*d {
+                *killed.lock().unwrap() = true;
+                #[cfg(unix)]
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGKILL);
+                }
+                *d = true;
+            }
+        })
+    };
+
+    let mut out = String::new();
+    let read_res = stdout.read_to_string(&mut out);
+    {
+        *done.lock().unwrap() = true;
+    }
+    let status = child.wait();
+    let _ = watcher.join();
+
+    if *killed.lock().unwrap() {
+        return Err(ERR.to_string());
+    }
+    match (read_res, status) {
+        (Ok(_), Ok(s)) if s.success() => Ok(out),
+        _ => Err(ERR.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -316,6 +383,21 @@ mod tests {
             Ok(_) => panic!("expected spawn to fail"),
         };
         assert_eq!(err, "Failed to start the agent sidecar");
+    }
+
+    #[test]
+    fn spawn_oneshot_captures_stdout() {
+        let out = spawn_oneshot("echo", &["hello"], &std::env::temp_dir(), &[], std::time::Duration::from_secs(5)).unwrap();
+        assert_eq!(out.trim(), "hello");
+    }
+    #[test]
+    fn spawn_oneshot_nonzero_exit_is_err() {
+        assert!(spawn_oneshot("false", &[], &std::env::temp_dir(), &[], std::time::Duration::from_secs(5)).is_err());
+    }
+    #[test]
+    fn spawn_oneshot_times_out() {
+        let r = spawn_oneshot("sleep", &["10"], &std::env::temp_dir(), &[], std::time::Duration::from_millis(50));
+        assert!(r.is_err());
     }
 
     #[test]
