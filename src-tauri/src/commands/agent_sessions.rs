@@ -83,7 +83,7 @@ pub fn list_agent_sessions(
 }
 
 /// Max wall-clock time the model-list helper may run before it is killed.
-const MODELS_TIMEOUT: Duration = std::time::Duration::from_secs(10);
+const MODELS_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// List the models the given account can use, by running the dependency-free Node
 /// helper with the account's key injected (key never returns to the frontend).
@@ -119,7 +119,11 @@ pub fn list_account_models(
         &agent::resolve_sdk_models_sidecar(),
         &[],
         &cwd,
-        &[("ANTHROPIC_API_KEY".to_string(), key)],
+        &[
+            ("ANTHROPIC_API_KEY".to_string(), key),
+            ("ANTHROPIC_AUTH_TOKEN".to_string(), String::new()),
+            ("CLAUDE_CODE_OAUTH_TOKEN".to_string(), String::new()),
+        ],
         MODELS_TIMEOUT,
     )?;
     sdk::parse_models(&stdout).map_err(|_| "Failed to list models".to_string())
