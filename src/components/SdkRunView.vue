@@ -85,7 +85,7 @@ async function reviewChanges() {
     <p
       class="muted sdk-model"
       data-testid="sdk-model"
-      :data-dbg="`m=${session.mode}|c=${diff?.is_clean ?? 'u'}|e=${diff?.error ?? '-'}|f=${finished}`"
+      :data-dbg="`m=${session.mode}|st=${session.status}|c=${diff?.is_clean ?? 'u'}|n=${diff?.changed_files?.length ?? '-'}|e=${diff?.error ?? '-'}|f=${finished}|ev=${events.length}`"
     >
       Model: {{ session.model_id ?? "Default" }}
     </p>

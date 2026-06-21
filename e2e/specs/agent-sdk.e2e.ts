@@ -146,13 +146,16 @@ describe("claude agent sdk (plan-only)", () => {
       timeout: 30_000,
       timeoutMsg: "edit session did not finish",
     });
-    const dbg = await browser.execute(() => {
-      const els = [...document.querySelectorAll('[data-testid="sdk-model"]')];
-      const vis = els.find((el) => (el as HTMLElement).offsetParent !== null);
-      return vis?.getAttribute("data-dbg") ?? "no-visible";
-    });
-    // eslint-disable-next-line no-console
-    console.log("EDIT-DBG", dbg);
+    for (let i = 0; i < 12; i++) {
+      const d = await browser.execute(() => {
+        const els = [...document.querySelectorAll('[data-testid="sdk-model"]')];
+        const vis = els.find((el) => (el as HTMLElement).offsetParent !== null);
+        return vis?.getAttribute("data-dbg") ?? "no-visible";
+      });
+      // eslint-disable-next-line no-console
+      console.log(`EDIT-DBG[${i}]`, d);
+      await browser.pause(2000);
+    }
     const cta = await $('[data-testid="sdk-review-cta"]');
     await cta.waitForExist({ timeout: 20_000 });
     expect(await cta.getText()).toContain("changed 1 file");
