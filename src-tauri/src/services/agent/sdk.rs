@@ -25,7 +25,6 @@ pub fn redact(line: &str, secret: &str) -> String {
 
 /// One model the user can pick for an SDK session, from the provider's models API.
 #[derive(Debug, Clone, Serialize)]
-#[allow(dead_code)]
 pub struct ModelInfo {
     pub id: String,
     pub display_name: String,
@@ -36,7 +35,6 @@ pub struct ModelInfo {
 /// `display_name` falls back to `id`; non-object `data` elements are skipped; never
 /// panics. The `Err` value is a fixed, dataless reason — the command maps any `Err`
 /// to a fixed opaque string, so the raw body is never surfaced.
-#[allow(dead_code)]
 pub fn parse_models(stdout: &str) -> Result<Vec<ModelInfo>, String> {
     let v: serde_json::Value =
         serde_json::from_str(stdout.trim()).map_err(|_| "parse".to_string())?;
@@ -175,19 +173,20 @@ pub struct SdkSpawned {
     pub handle: SdkHandle,
 }
 
-/// Spawn the sidecar as a plain piped child in `cwd`; goal as argv[2], mode as
-/// argv[3], env injected, stdin null (the goal is argv, not stdin), stderr
-/// discarded (never relayed).
+/// Spawn the sidecar as a piped child in `cwd`; goal as argv[2], mode as argv[3],
+/// model as argv[4] (empty = SDK default), env injected, stdin null, stderr discarded.
 pub fn spawn(
     program: &str,
     goal: &str,
     mode: &str,
+    model: &str,
     cwd: &Path,
     env: &[(String, String)],
 ) -> Result<SdkSpawned, String> {
     let mut cmd = Command::new(program);
     cmd.arg(goal)
         .arg(mode)
+        .arg(model)
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -224,7 +223,6 @@ pub fn spawn(
 /// is the fixed opaque "Failed to list models".
 /// The timeout is a backstop for a wedged helper; the intended caller writes its
 /// output then exits immediately, so the kill window is effectively zero.
-#[allow(dead_code)]
 pub fn spawn_oneshot(
     program: &str,
     args: &[&str],
@@ -356,6 +354,7 @@ mod tests {
             "printenv",
             "UAW_SDK_PROBE", // argv (the goal slot) = the var name printenv echoes
             "plan",          // mode slot (printenv ignores the extra unset name)
+            "",
             &dir,
             &[("UAW_SDK_PROBE".into(), "INJECTED".into())],
         )
@@ -370,17 +369,17 @@ mod tests {
     #[test]
     fn spawn_forwards_mode_as_second_arg() {
         let dir = std::env::temp_dir();
-        // `echo` joins its argv with spaces, so the goal + mode round-trip on stdout.
-        let mut sp = spawn("echo", "GOAL", "edit", &dir, &[]).expect("spawn echo");
+        // `echo` joins its argv with spaces, so the goal + mode + model round-trip on stdout.
+        let mut sp = spawn("echo", "GOAL", "edit", "m1", &dir, &[]).expect("spawn echo");
         let mut out = String::new();
         BufReader::new(&mut sp.stdout).read_to_string(&mut out).unwrap();
         sp.child.wait().unwrap();
-        assert_eq!(out.trim(), "GOAL edit");
+        assert_eq!(out.trim(), "GOAL edit m1");
     }
 
     #[test]
     fn spawn_missing_program_is_opaque() {
-        let err = match spawn("/no/such/sidecar-xyz", "goal", "plan", &std::env::temp_dir(), &[]) {
+        let err = match spawn("/no/such/sidecar-xyz", "goal", "plan", "", &std::env::temp_dir(), &[]) {
             Err(e) => e,
             Ok(_) => panic!("expected spawn to fail"),
         };

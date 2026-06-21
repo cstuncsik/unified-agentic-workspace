@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use rusqlite::Connection;
 use serde::Serialize;
@@ -81,6 +82,49 @@ pub fn list_agent_sessions(
     agent_session::list_by_coding_workspace(&conn, &coding_workspace_id).map_err(|e| e.to_string())
 }
 
+/// Max wall-clock time the model-list helper may run before it is killed.
+const MODELS_TIMEOUT: Duration = std::time::Duration::from_secs(10);
+
+/// List the models the given account can use, by running the dependency-free Node
+/// helper with the account's key injected (key never returns to the frontend).
+/// Anthropic-only; every failure is a fixed opaque error.
+#[tauri::command]
+pub fn list_account_models(
+    state: State<'_, Mutex<Connection>>,
+    coding_workspace_id: String,
+    account_id: String,
+) -> Result<Vec<sdk::ModelInfo>, String> {
+    let account = {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        let Some(cw) =
+            coding_workspace::get(&conn, &coding_workspace_id).map_err(|e| e.to_string())?
+        else {
+            return Err(format!(
+                "Coding workspace '{coding_workspace_id}' does not exist"
+            ));
+        };
+        load_session_account(&conn, Some(&account_id), &cw.workspace_id)?
+            .ok_or_else(|| "Selected account is not available in this workspace".to_string())?
+    };
+    if account.provider != "anthropic" {
+        return Err("Model listing is only supported for Anthropic accounts".into());
+    }
+    let key = match keystore::resolve().get(&account.keychain_ref) {
+        Ok(Some(k)) => k,
+        Ok(None) => return Err("Stored key for this account is missing".into()),
+        Err(_) => return Err("Failed to load the account key".into()),
+    };
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/tmp"));
+    let stdout = sdk::spawn_oneshot(
+        &agent::resolve_sdk_models_sidecar(),
+        &[],
+        &cwd,
+        &[("ANTHROPIC_API_KEY".to_string(), key)],
+        MODELS_TIMEOUT,
+    )?;
+    sdk::parse_models(&stdout).map_err(|_| "Failed to list models".to_string())
+}
+
 #[tauri::command]
 pub fn get_agent_session(
     state: State<'_, Mutex<Connection>>,
@@ -143,6 +187,7 @@ pub fn start_agent_session(
     account_id: Option<String>,
     prompt: Option<String>,
     mode: Option<String>,
+    model: Option<String>,
     cols: u16,
     rows: u16,
 ) -> Result<AgentSession, String> {
@@ -192,6 +237,7 @@ pub fn start_agent_session(
             coding_workspace_id,
             prompt.unwrap_or_default(),
             sdk::normalize_sdk_mode(mode.as_deref()),
+            model.as_deref(),
             id,
             transcript_path,
             transcript_str,
@@ -335,6 +381,7 @@ fn start_sdk_session(
     coding_workspace_id: String,
     goal: String,
     mode: &str,
+    model: Option<&str>,
     id: String,
     transcript_path: PathBuf,
     transcript_str: String,
@@ -359,7 +406,7 @@ fn start_sdk_session(
         stdout,
         mut child,
         handle,
-    } = sdk::spawn(&sidecar, &goal, mode, Path::new(&worktree_path), &sdk_env)?;
+    } = sdk::spawn(&sidecar, &goal, mode, model.unwrap_or(""), Path::new(&worktree_path), &sdk_env)?;
 
     let session = {
         let conn = state.lock().map_err(|e| e.to_string())?;
@@ -372,7 +419,7 @@ fn start_sdk_session(
             &sidecar,
             &transcript_str,
             account_row_id.as_deref(),
-            None,
+            model,
             "sdk",
             Some(mode),
         )
