@@ -72,6 +72,7 @@ cat >/tmp/uaw-fake-sdk <<'SDK'
 #!/usr/bin/env bash
 goal="$1"
 mode="${2:-plan}"
+model="${3:-}"
 km=KEY:unset; [ -n "${ANTHROPIC_API_KEY:-}" ] && km=KEY:set
 # In edit mode, simulate an agent edit by writing an untracked file into the
 # worktree (cwd is the worktree: the backend sets current_dir). Relative path only,
@@ -84,9 +85,18 @@ printf '{"type":"tool","name":"Read","summary":"README.md"}\n'
 printf '{"type":"tool","name":"echo","summary":"%s"}\n' "${ANTHROPIC_API_KEY:-none}"
 printf 'this line is not json\n'
 printf '{"type":"tool","name":"probe","summary":"%s"}\n' "$km"
+printf '{"type":"tool","name":"model-probe","summary":"MODEL:%s"}\n' "$model"
 printf '{"type":"result","status":"success","summary":"Done"}\n'
 SDK
 chmod +x /tmp/uaw-fake-sdk
+
+# Fake model-list helper for the SDK model-picker e2e: emits canned /v1/models JSON
+# (the shape parse_models accepts) and nothing else. No network, no auth needed.
+cat >/tmp/uaw-fake-list-models <<'MODELS'
+#!/usr/bin/env bash
+printf '{"data":[{"id":"claude-opus-4-5","display_name":"Claude Opus 4.5"},{"id":"claude-sonnet-4-5","display_name":"Claude Sonnet 4.5"}]}\n'
+MODELS
+chmod +x /tmp/uaw-fake-list-models
 
 # Invoke the wdio binary directly (skips pnpm's pre-run deps check). Not exec'd
 # so the EXIT trap still runs to stop Xvfb; set -e propagates wdio's exit code.

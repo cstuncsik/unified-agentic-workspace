@@ -4,6 +4,7 @@ import { useAgentSessionsStore } from "../stores/agentSessions";
 import { useCodingWorkspacesStore } from "../stores/codingWorkspaces";
 import { useWorkspacesStore } from "../stores/workspaces";
 import { useProviderAccountsStore } from "../stores/providerAccounts";
+import { useAccountModelsStore } from "../stores/accountModels";
 import { useToast } from "../composables/useToast";
 import TerminalTab from "./TerminalTab.vue";
 import SdkRunView from "./SdkRunView.vue";
@@ -12,6 +13,7 @@ const store = useAgentSessionsStore();
 const coding = useCodingWorkspacesStore();
 const workspaces = useWorkspacesStore();
 const providerAccounts = useProviderAccountsStore();
+const accountModels = useAccountModelsStore();
 const toast = useToast();
 
 const newWorktreeId = ref("");
@@ -19,12 +21,17 @@ const newAdapterId = ref("");
 const newAccountId = ref("");
 const newGoal = ref("");
 const newMode = ref("plan");
+const newModelId = ref("");
 const starting = ref(false);
 
 onMounted(async () => {
   await store.loadAdapters();
   if (store.adapters.length > 0) newAdapterId.value = store.adapters[0].id;
 });
+
+const accountModelOptions = computed(() => accountModels.modelsByAccount[newAccountId.value] ?? []);
+const modelsLoading = computed(() => accountModels.loadingByAccount[newAccountId.value] ?? false);
+const modelsError = computed(() => accountModels.errorByAccount[newAccountId.value] ?? null);
 
 const adapterKind = (id: string) => store.adapters.find((a) => a.id === id)?.kind ?? "pty";
 const selectedIsSdk = computed(() => adapterKind(newAdapterId.value) === "sdk");
@@ -57,6 +64,23 @@ watch(newAdapterId, () => {
   newAccountId.value = "";
   newGoal.value = "";
   newMode.value = "plan";
+  newModelId.value = "";
+});
+
+// When the account changes, reset the model and lazy-load that account's models
+// (only for an SDK adapter with a worktree selected — the command needs both).
+watch(newAccountId, (val) => {
+  newModelId.value = "";
+  if (val && selectedIsSdk.value && newWorktreeId.value) {
+    accountModels.loadModels(newWorktreeId.value, val);
+  }
+});
+
+// If the worktree is chosen after the account, fetch models then (cache-hit otherwise).
+watch(newWorktreeId, (val) => {
+  if (val && selectedIsSdk.value && newAccountId.value) {
+    accountModels.loadModels(val, newAccountId.value);
+  }
 });
 
 // Agent tabs persist in memory for the whole app session, but each belongs to one
@@ -78,6 +102,7 @@ watch(
     newAccountId.value = "";
     newGoal.value = "";
     newMode.value = "plan";
+    newModelId.value = "";
 
     const remembered = newId ? store.lastActiveByWorkspace[newId] : null;
     if (remembered && visibleTabs.value.some((t) => t.session.id === remembered)) {
@@ -101,6 +126,7 @@ async function openTerminal() {
       newAccountId.value || null,
       selectedIsSdk.value ? newGoal.value.trim() || null : null,
       selectedIsSdk.value ? newMode.value : null,
+      selectedIsSdk.value ? newModelId.value || null : null,
       80,
       24,
     );
@@ -179,6 +205,24 @@ async function openTerminal() {
           <option value="plan">Plan</option>
           <option value="edit">Edit</option>
         </select>
+        <select
+          v-if="selectedIsSdk"
+          v-model="newModelId"
+          class="re-select"
+          data-size="sm"
+          aria-label="Agent model"
+          :disabled="modelsLoading"
+        >
+          <option value="">
+            {{ modelsLoading ? "Loading models…" : "Default (SDK chooses)" }}
+          </option>
+          <option v-for="m in accountModelOptions" :key="m.id" :value="m.id">
+            {{ m.display_name }}
+          </option>
+        </select>
+        <p v-if="selectedIsSdk && modelsError" class="muted new__hint">
+          models unavailable — check your API key
+        </p>
         <textarea
           v-if="selectedIsSdk"
           v-model="newGoal"

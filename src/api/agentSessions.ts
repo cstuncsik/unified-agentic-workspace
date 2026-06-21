@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AgentAdapter, AgentSession } from "../types/agentSession";
+import type { AgentAdapter, AgentSession, ModelInfo } from "../types/agentSession";
 
 export function listAgentAdapters(): Promise<AgentAdapter[]> {
   return invoke<AgentAdapter[]>("list_agent_adapters");
@@ -9,12 +9,20 @@ export function listAgentSessions(codingWorkspaceId: string): Promise<AgentSessi
   return invoke<AgentSession[]>("list_agent_sessions", { codingWorkspaceId });
 }
 
+export function listAccountModels(
+  codingWorkspaceId: string,
+  accountId: string,
+): Promise<ModelInfo[]> {
+  return invoke<ModelInfo[]>("list_account_models", { codingWorkspaceId, accountId });
+}
+
 export function startAgentSession(
   codingWorkspaceId: string,
   adapterId: string,
   accountId: string | null,
   prompt: string | null,
   mode: string | null,
+  model: string | null,
   cols: number,
   rows: number,
 ): Promise<AgentSession> {
@@ -24,6 +32,7 @@ export function startAgentSession(
     accountId,
     prompt,
     mode,
+    model,
     cols,
     rows,
   });

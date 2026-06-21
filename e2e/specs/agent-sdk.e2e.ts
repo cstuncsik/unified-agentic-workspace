@@ -11,6 +11,13 @@ const feedText = () =>
     () => document.querySelector('[data-testid="agent-sdk-feed"]')?.textContent ?? "",
   );
 
+const allFeedsText = () =>
+  browser.execute(() =>
+    [...document.querySelectorAll('[data-testid="agent-sdk-feed"]')]
+      .map((f) => f.textContent ?? "")
+      .join("\n"),
+  );
+
 /**
  * Milestone 10b-2b slice 1: a plan-only Claude Agent SDK run via a fake Node
  * sidecar (UAW_AGENT_SDK_SIDECAR). Proves the structured feed renders, the
@@ -122,11 +129,10 @@ describe("claude agent sdk (plan-only)", () => {
     await (await $('[aria-label="Agent goal"]')).setValue("edit the readme");
     await (await $("button*=New terminal")).click();
 
-    // The CTA appears only on the edit tab, and only after the run finishes and the
-    // worktree diff resolves (exit event → diff fetch → render). Waiting on it is
-    // unambiguous even with the earlier plan tab still mounted.
+    // The CTA renders once the agent emits its result (its terminal event) and the
+    // worktree diff resolves — no need to wait on the laggy OS process-exit event.
     const cta = await $('[data-testid="sdk-review-cta"]');
-    await cta.waitForExist({ timeout: 20_000 });
+    await cta.waitForExist({ timeout: 25_000 });
     expect(await cta.getText()).toContain("changed 1 file");
 
     // Click via JS: a transient bottom-corner toast (e.g. "Worktree created" from the
@@ -141,5 +147,34 @@ describe("claude agent sdk (plan-only)", () => {
     // in the Reviews view.
     await (await $("button*=Reviews")).click();
     await (await $('[data-testid="review-row"]')).waitForExist({ timeout: 10_000 });
+  });
+
+  it("lists the account's models and runs the chosen one", async () => {
+    await (await $("button*=Agents")).click();
+    await (await $('[aria-label="Agent worktree"]')).selectByVisibleText("feat/sdk");
+    await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Agent SDK");
+    await (await $('[aria-label="Provider account"]')).selectByVisibleText("SDK Acct");
+
+    // The model select lazy-loads the account's models (async Node spawn).
+    const modelSelect = await $('[aria-label="Agent model"]');
+    await browser.waitUntil(async () => (await modelSelect.$$("option").length) > 1, {
+      timeout: 15_000,
+      timeoutMsg: "model select never populated",
+    });
+    // The default option is selected (value "") before the user picks a model.
+    expect(await modelSelect.getValue()).toBe("");
+    await modelSelect.selectByVisibleText("Claude Sonnet 4.5");
+
+    await (await $('[aria-label="Agent goal"]')).setValue("summarize with sonnet");
+    await (await $("button*=New terminal")).click();
+
+    // The chosen model id reached the sidecar (argv[4]) → the fake echoed it to the feed.
+    await browser.waitUntil(
+      async () => (await allFeedsText()).includes("MODEL:claude-sonnet-4-5"),
+      {
+        timeout: 15_000,
+        timeoutMsg: "expected the chosen model to reach the sidecar",
+      },
+    );
   });
 });

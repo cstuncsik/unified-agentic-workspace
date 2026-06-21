@@ -59,6 +59,7 @@ export const config: WebdriverIO.Config = {
     // never touches the real OS keychain.
     process.env.UAW_KEYSTORE_DIR = path.join(sessionDir, "keystore");
     process.env.UAW_AGENT_SDK_SIDECAR = "/tmp/uaw-fake-sdk";
+    process.env.UAW_AGENT_SDK_MODELS = "/tmp/uaw-fake-list-models";
     // Scrub any ambient provider keys so the account-injection spec is hermetic:
     // a Default (no-account) session must reach the agent with NO key in its env,
     // and an account session's KEY:set must be the injected key, not a host leak.

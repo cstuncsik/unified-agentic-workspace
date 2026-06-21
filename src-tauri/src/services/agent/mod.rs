@@ -117,22 +117,29 @@ pub fn resolve_program(adapter: &AgentAdapter) -> String {
     }
 }
 
-/// The Node sidecar entry to spawn for the SDK adapter: `UAW_AGENT_SDK_SIDECAR`
-/// overrides (so e2e injects a fake) else the bundled default. The default is
-/// resolved to an ABSOLUTE path against the backend's cwd, because the child is
-/// spawned with its working directory set to the worktree — a relative program
-/// path would otherwise resolve against the worktree and fail. (Bundling the
-/// sidecar as a packaged resource is a later slice.)
-pub fn resolve_sdk_sidecar() -> String {
-    if let Ok(v) = std::env::var("UAW_AGENT_SDK_SIDECAR") {
-        if !v.trim().is_empty() {
-            return v;
+/// Resolve a sidecar script path: an env override (trimmed, non-empty) wins; else the
+/// bundled relative path made ABSOLUTE against the backend cwd (the child is spawned
+/// with cwd=worktree, so a relative program path would resolve there and fail).
+fn resolve_sidecar_script(env_var: &str, rel: &str) -> String {
+    if let Ok(v) = std::env::var(env_var) {
+        let trimmed = v.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
         }
     }
-    let rel = "sidecar/claude-agent-sdk/index.mjs";
     std::env::current_dir()
         .map(|d| d.join(rel).to_string_lossy().into_owned())
         .unwrap_or_else(|_| rel.to_string())
+}
+
+/// The Node sidecar entry for the SDK agent (`UAW_AGENT_SDK_SIDECAR` overrides).
+pub fn resolve_sdk_sidecar() -> String {
+    resolve_sidecar_script("UAW_AGENT_SDK_SIDECAR", "sidecar/claude-agent-sdk/index.mjs")
+}
+
+/// The Node helper that lists a provider's models (`UAW_AGENT_SDK_MODELS` overrides).
+pub fn resolve_sdk_models_sidecar() -> String {
+    resolve_sidecar_script("UAW_AGENT_SDK_MODELS", "sidecar/claude-agent-sdk/list-models.mjs")
 }
 
 #[cfg(test)]
@@ -177,6 +184,16 @@ mod tests {
         std::env::set_var("UAW_AGENT_SDK_SIDECAR", "/tmp/fake-sdk");
         assert_eq!(resolve_sdk_sidecar(), "/tmp/fake-sdk");
         std::env::remove_var("UAW_AGENT_SDK_SIDECAR");
+    }
+
+    #[test]
+    fn resolve_sdk_models_sidecar_prefers_env() {
+        std::env::remove_var("UAW_AGENT_SDK_MODELS");
+        assert!(resolve_sdk_models_sidecar().ends_with("list-models.mjs"));
+        std::env::set_var("UAW_AGENT_SDK_MODELS", "/tmp/fake-models");
+        let resolved = resolve_sdk_models_sidecar();
+        std::env::remove_var("UAW_AGENT_SDK_MODELS");
+        assert_eq!(resolved, "/tmp/fake-models");
     }
 
     #[test]

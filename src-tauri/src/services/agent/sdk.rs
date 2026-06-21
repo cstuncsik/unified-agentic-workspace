@@ -4,9 +4,13 @@
 //! the piped-child spawn + process-group kill. The pure functions below are the
 //! unit-tested seams; the transcript-write/emit closure lives in the command.
 
+use serde::Serialize;
 use std::io::BufRead;
+use std::io::Read;
 use std::path::Path;
 use std::process::{Child, ChildStdout, Command, Stdio};
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 /// Mask the injected API key value anywhere it appears in a line before the line
 /// is persisted or emitted. The SDK agent authors content we relay, so a
@@ -17,6 +21,38 @@ pub fn redact(line: &str, secret: &str) -> String {
     } else {
         line.replace(secret, "***")
     }
+}
+
+/// One model the user can pick for an SDK session, from the provider's models API.
+#[derive(Debug, Clone, Serialize)]
+pub struct ModelInfo {
+    pub id: String,
+    pub display_name: String,
+}
+
+/// Parse the Anthropic `/v1/models` body into pickable models. `Ok(vec![])` for an
+/// empty `data`; `Err` for a non-`{data}` body (an API error) or malformed JSON.
+/// `display_name` falls back to `id`; non-object `data` elements are skipped; never
+/// panics. The `Err` value is a fixed, dataless reason — the command maps any `Err`
+/// to a fixed opaque string, so the raw body is never surfaced.
+pub fn parse_models(stdout: &str) -> Result<Vec<ModelInfo>, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).map_err(|_| "parse".to_string())?;
+    let data = v
+        .get("data")
+        .and_then(|d| d.as_array())
+        .ok_or_else(|| "shape".to_string())?;
+    Ok(data
+        .iter()
+        .filter_map(|m| {
+            let id = m.get("id").and_then(|x| x.as_str()).filter(|s| !s.is_empty())?;
+            let display_name = m.get("display_name").and_then(|x| x.as_str()).unwrap_or(id);
+            Some(ModelInfo {
+                id: id.to_string(),
+                display_name: display_name.to_string(),
+            })
+        })
+        .collect())
 }
 
 /// Normalize a caller-supplied mode to the sidecar contract. Unknown/None → "plan"
@@ -137,19 +173,20 @@ pub struct SdkSpawned {
     pub handle: SdkHandle,
 }
 
-/// Spawn the sidecar as a plain piped child in `cwd`; goal as argv[2], mode as
-/// argv[3], env injected, stdin null (the goal is argv, not stdin), stderr
-/// discarded (never relayed).
+/// Spawn the sidecar as a piped child in `cwd`; goal as argv[2], mode as argv[3],
+/// model as argv[4] (empty = SDK default), env injected, stdin null, stderr discarded.
 pub fn spawn(
     program: &str,
     goal: &str,
     mode: &str,
+    model: &str,
     cwd: &Path,
     env: &[(String, String)],
 ) -> Result<SdkSpawned, String> {
     let mut cmd = Command::new(program);
     cmd.arg(goal)
         .arg(mode)
+        .arg(model)
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -175,6 +212,79 @@ pub fn spawn(
         child,
         handle: SdkHandle { pid },
     })
+}
+
+/// Run a short-lived helper, capture all stdout, enforce a wall-clock timeout.
+/// Unlike `spawn` (which streams + owns a process group), this is request/response:
+/// stderr is discarded, no handle is returned. A watcher thread waits on a condvar
+/// up to `timeout`; the reader signals it the instant the child's stdout closes, so
+/// a fast helper returns immediately (no full-timeout wait). On a real timeout the
+/// watcher kills the child (it can't hit a reused PID — the kill happens under the
+/// `done` lock, before `child.wait()` reaps). A killed run returns `Err` regardless
+/// of captured stdout. Non-zero exit / spawn failure → `Err`. Every `Err` is the
+/// fixed opaque "Failed to list models". The timeout is a backstop for a wedged
+/// helper; the intended caller writes its output then exits immediately.
+pub fn spawn_oneshot(
+    program: &str,
+    args: &[&str],
+    cwd: &Path,
+    env: &[(String, String)],
+    timeout: Duration,
+) -> Result<String, String> {
+    const ERR: &str = "Failed to list models";
+    let mut cmd = Command::new(program);
+    cmd.args(args)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    let mut child = cmd.spawn().map_err(|_| ERR.to_string())?;
+    let mut stdout = child.stdout.take().ok_or_else(|| ERR.to_string())?;
+    let pid = child.id();
+
+    // (done, cvar): `done` becomes true when the reader finishes (child exited) OR
+    // when the watcher kills on timeout — whichever first, under the lock.
+    let state = Arc::new((Mutex::new(false), Condvar::new()));
+    let killed = Arc::new(Mutex::new(false));
+    let watcher = {
+        let (state, killed) = (state.clone(), killed.clone());
+        std::thread::spawn(move || {
+            let (lock, cvar) = &*state;
+            let done = lock.lock().unwrap();
+            let (mut done, wait_res) = cvar
+                .wait_timeout_while(done, timeout, |d| !*d)
+                .unwrap();
+            if wait_res.timed_out() && !*done {
+                *killed.lock().unwrap() = true;
+                #[cfg(unix)]
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGKILL);
+                }
+                *done = true;
+            }
+        })
+    };
+
+    let mut out = String::new();
+    let read_res = stdout.read_to_string(&mut out);
+    {
+        let (lock, cvar) = &*state;
+        *lock.lock().unwrap() = true;
+        cvar.notify_all();
+    }
+    let status = child.wait();
+    let _ = watcher.join();
+
+    if *killed.lock().unwrap() {
+        return Err(ERR.to_string());
+    }
+    match (read_res, status) {
+        (Ok(_), Ok(s)) if s.success() => Ok(out),
+        _ => Err(ERR.to_string()),
+    }
 }
 
 #[cfg(test)]
@@ -252,6 +362,7 @@ mod tests {
             "printenv",
             "UAW_SDK_PROBE", // argv (the goal slot) = the var name printenv echoes
             "plan",          // mode slot (printenv ignores the extra unset name)
+            "",
             &dir,
             &[("UAW_SDK_PROBE".into(), "INJECTED".into())],
         )
@@ -266,20 +377,73 @@ mod tests {
     #[test]
     fn spawn_forwards_mode_as_second_arg() {
         let dir = std::env::temp_dir();
-        // `echo` joins its argv with spaces, so the goal + mode round-trip on stdout.
-        let mut sp = spawn("echo", "GOAL", "edit", &dir, &[]).expect("spawn echo");
+        // `echo` joins its argv with spaces, so the goal + mode + model round-trip on stdout.
+        let mut sp = spawn("echo", "GOAL", "edit", "m1", &dir, &[]).expect("spawn echo");
         let mut out = String::new();
         BufReader::new(&mut sp.stdout).read_to_string(&mut out).unwrap();
         sp.child.wait().unwrap();
-        assert_eq!(out.trim(), "GOAL edit");
+        assert_eq!(out.trim(), "GOAL edit m1");
     }
 
     #[test]
     fn spawn_missing_program_is_opaque() {
-        let err = match spawn("/no/such/sidecar-xyz", "goal", "plan", &std::env::temp_dir(), &[]) {
+        let err = match spawn("/no/such/sidecar-xyz", "goal", "plan", "", &std::env::temp_dir(), &[]) {
             Err(e) => e,
             Ok(_) => panic!("expected spawn to fail"),
         };
         assert_eq!(err, "Failed to start the agent sidecar");
+    }
+
+    #[test]
+    fn spawn_oneshot_captures_stdout() {
+        let out = spawn_oneshot("echo", &["hello"], &std::env::temp_dir(), &[], std::time::Duration::from_secs(5)).unwrap();
+        assert_eq!(out.trim(), "hello");
+    }
+    #[test]
+    fn spawn_oneshot_nonzero_exit_is_err() {
+        assert!(spawn_oneshot("false", &[], &std::env::temp_dir(), &[], std::time::Duration::from_secs(5)).is_err());
+    }
+    #[test]
+    fn spawn_oneshot_times_out() {
+        let r = spawn_oneshot("sleep", &["10"], &std::env::temp_dir(), &[], std::time::Duration::from_millis(50));
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn parse_models_valid() {
+        let json = r#"{"data":[{"id":"claude-opus-4-5","display_name":"Claude Opus 4.5"},{"id":"claude-sonnet-4-5","display_name":"Claude Sonnet 4.5"}]}"#;
+        let m = parse_models(json).unwrap();
+        assert_eq!(m.len(), 2);
+        assert_eq!(m[0].id, "claude-opus-4-5");
+        assert_eq!(m[0].display_name, "Claude Opus 4.5");
+    }
+    #[test]
+    fn parse_models_empty_data_is_ok_empty() {
+        assert!(parse_models(r#"{"data":[]}"#).unwrap().is_empty());
+    }
+    #[test]
+    fn parse_models_error_body_is_err() {
+        assert!(parse_models(r#"{"error":{"type":"authentication_error"}}"#).is_err());
+    }
+    #[test]
+    fn parse_models_truncated_is_err() {
+        assert!(parse_models(r#"{"data":[{"id":"#).is_err());
+    }
+    #[test]
+    fn parse_models_missing_display_name_falls_back_to_id() {
+        let m = parse_models(r#"{"data":[{"id":"m1"}]}"#).unwrap();
+        assert_eq!(m[0].display_name, "m1");
+    }
+    #[test]
+    fn parse_models_skips_non_object_elements() {
+        let m = parse_models(r#"{"data":[null,42,{"id":"x"}]}"#).unwrap();
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].id, "x");
+    }
+    #[test]
+    fn parse_models_skips_empty_id() {
+        let m = parse_models(r#"{"data":[{"id":""},{"id":"real"}]}"#).unwrap();
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].id, "real");
     }
 }
