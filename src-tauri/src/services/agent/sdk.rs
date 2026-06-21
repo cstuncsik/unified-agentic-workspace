@@ -4,6 +4,7 @@
 //! the piped-child spawn + process-group kill. The pure functions below are the
 //! unit-tested seams; the transcript-write/emit closure lives in the command.
 
+use serde::Serialize;
 use std::io::BufRead;
 use std::path::Path;
 use std::process::{Child, ChildStdout, Command, Stdio};
@@ -17,6 +18,40 @@ pub fn redact(line: &str, secret: &str) -> String {
     } else {
         line.replace(secret, "***")
     }
+}
+
+/// One model the user can pick for an SDK session, from the provider's models API.
+#[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
+pub struct ModelInfo {
+    pub id: String,
+    pub display_name: String,
+}
+
+/// Parse the Anthropic `/v1/models` body into pickable models. `Ok(vec![])` for an
+/// empty `data`; `Err` for a non-`{data}` body (an API error) or malformed JSON.
+/// `display_name` falls back to `id`; non-object `data` elements are skipped; never
+/// panics. The `Err` value is a fixed, dataless reason — the command maps any `Err`
+/// to a fixed opaque string, so the raw body is never surfaced.
+#[allow(dead_code)]
+pub fn parse_models(stdout: &str) -> Result<Vec<ModelInfo>, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).map_err(|_| "parse".to_string())?;
+    let data = v
+        .get("data")
+        .and_then(|d| d.as_array())
+        .ok_or_else(|| "shape".to_string())?;
+    Ok(data
+        .iter()
+        .filter_map(|m| {
+            let id = m.get("id").and_then(|x| x.as_str())?;
+            let display_name = m.get("display_name").and_then(|x| x.as_str()).unwrap_or(id);
+            Some(ModelInfo {
+                id: id.to_string(),
+                display_name: display_name.to_string(),
+            })
+        })
+        .collect())
 }
 
 /// Normalize a caller-supplied mode to the sidecar contract. Unknown/None → "plan"
@@ -281,5 +316,37 @@ mod tests {
             Ok(_) => panic!("expected spawn to fail"),
         };
         assert_eq!(err, "Failed to start the agent sidecar");
+    }
+
+    #[test]
+    fn parse_models_valid() {
+        let json = r#"{"data":[{"id":"claude-opus-4-5","display_name":"Claude Opus 4.5"},{"id":"claude-sonnet-4-5","display_name":"Claude Sonnet 4.5"}]}"#;
+        let m = parse_models(json).unwrap();
+        assert_eq!(m.len(), 2);
+        assert_eq!(m[0].id, "claude-opus-4-5");
+        assert_eq!(m[0].display_name, "Claude Opus 4.5");
+    }
+    #[test]
+    fn parse_models_empty_data_is_ok_empty() {
+        assert!(parse_models(r#"{"data":[]}"#).unwrap().is_empty());
+    }
+    #[test]
+    fn parse_models_error_body_is_err() {
+        assert!(parse_models(r#"{"error":{"type":"authentication_error"}}"#).is_err());
+    }
+    #[test]
+    fn parse_models_truncated_is_err() {
+        assert!(parse_models(r#"{"data":[{"id":"#).is_err());
+    }
+    #[test]
+    fn parse_models_missing_display_name_falls_back_to_id() {
+        let m = parse_models(r#"{"data":[{"id":"m1"}]}"#).unwrap();
+        assert_eq!(m[0].display_name, "m1");
+    }
+    #[test]
+    fn parse_models_skips_non_object_elements() {
+        let m = parse_models(r#"{"data":[null,42,{"id":"x"}]}"#).unwrap();
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].id, "x");
     }
 }
