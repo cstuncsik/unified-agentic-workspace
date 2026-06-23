@@ -1,0 +1,24 @@
+src/components/CodingView.vue
+  s_b49f7388e23022::t_a1baeb25d1f478 262
+src/components/ReviewsView.vue
+  s_b49f7388e23022::t_46bff409fbbd6a 172-173
+  s_b49f7388e23022::t_67f7687fb3ca2e 61-67
+  s_b49f7388e23022::t_74cf4a859f287c 171,174-177
+  s_b49f7388e23022::t_655c49c4da9c6e 164-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.10",
+  "base_commit_sha": "c2213e9a1f323c68054f2fb26690ee2115a719f0",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
