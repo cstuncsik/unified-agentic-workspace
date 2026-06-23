@@ -1,0 +1,23 @@
+src/stores/codingWorkspaces.ts
+  s_b49f7388e23022::t_14e531a69b8dc9 79-80,87-91
+src/stores/reviews.ts
+  s_b49f7388e23022::t_1b6a7a8f4bf11d 57-64
+src/api/codingWorkspaces.ts
+  s_b49f7388e23022::t_a231067376f281 36-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.10",
+  "base_commit_sha": "290f08cdaad106b0017a0c1423b7e0de457fe42a",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
