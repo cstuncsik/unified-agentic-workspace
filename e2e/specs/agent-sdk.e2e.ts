@@ -96,6 +96,13 @@ describe("claude agent sdk (plan-only)", () => {
     expect(text).not.toContain(KEY_VALUE);
     // Plan mode never edits, so the worktree stays clean → no review affordance.
     expect((await $$('[data-testid="sdk-review-cta"]')).length).toBe(0);
+    // Plan mode never edits, so completion must NOT auto-create a review. The "Done"
+    // wait earlier in this test already gated on a positive completion signal, so this
+    // is not racy.
+    expect((await $$('[data-testid="sdk-review-done"]')).length).toBe(0);
+    await (await $("button*=Reviews")).click();
+    expect(await $$('[data-testid="review-row"]').length).toBe(0);
+    await (await $("button*=Agents")).click();
   });
 
   it("requires an account for the SDK adapter", async () => {
@@ -121,6 +128,11 @@ describe("claude agent sdk (plan-only)", () => {
   });
 
   it("edit mode changes the worktree and offers a review that persists", async () => {
+    // Count existing reviews before this run so we can assert exactly one is added.
+    await (await $("button*=Reviews")).click();
+    const reviewsBefore = await $$('[data-testid="review-row"]').length;
+
+    // Fill the launch form and start the edit run in one go (no nav in between).
     await (await $("button*=Agents")).click();
     await (await $('[aria-label="Agent worktree"]')).selectByVisibleText("feat/sdk-edit");
     await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Agent SDK");
@@ -129,24 +141,24 @@ describe("claude agent sdk (plan-only)", () => {
     await (await $('[aria-label="Agent goal"]')).setValue("edit the readme");
     await (await $("button*=New terminal")).click();
 
-    // The CTA renders once the agent emits its result (its terminal event) and the
-    // worktree diff resolves — no need to wait on the laggy OS process-exit event.
-    const cta = await $('[data-testid="sdk-review-cta"]');
-    await cta.waitForExist({ timeout: 25_000 });
-    expect(await cta.getText()).toContain("changed 1 file");
+    // No click: the review is created automatically once the agent completes and the
+    // worktree diff resolves dirty. The "Review created" footer appears on its own.
+    await (await $('[data-testid="sdk-review-done"]')).waitForExist({ timeout: 25_000 });
 
-    // Click via JS: a transient bottom-corner toast (e.g. "Worktree created" from the
-    // previous step) can overlay the footer button and intercept a native click. The
-    // JS click dispatches straight to the button's @click handler.
-    await browser.execute(() => {
-      const cta = document.querySelector('[data-testid="sdk-review-cta"]');
-      cta?.querySelector("button")?.click();
-    });
-
-    // The review was created by the existing completion flow and persists — find it
-    // in the Reviews view.
+    // Exactly one new review persisted, and it captured the agent's file write.
     await (await $("button*=Reviews")).click();
-    await (await $('[data-testid="review-row"]')).waitForExist({ timeout: 10_000 });
+    await browser.waitUntil(
+      async () => (await $$('[data-testid="review-row"]').length) === reviewsBefore + 1,
+      { timeout: 10_000, timeoutMsg: "expected exactly one new review from the edit run" },
+    );
+    await (await $$('[data-testid="review-row"]'))[0].click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(
+          () => document.querySelector('[data-testid="review-detail"]')?.textContent ?? "",
+        )).includes("AGENT_EDIT.md"),
+      { timeout: 10_000, timeoutMsg: "expected the review to list the agent's changed file" },
+    );
   });
 
   it("lists the account's models and runs the chosen one", async () => {
