@@ -5,6 +5,7 @@ import { useCodingWorkspacesStore } from "../stores/codingWorkspaces";
 import { useReviewsStore } from "../stores/reviews";
 import { useToast } from "../composables/useToast";
 import type { AgentSession, SdkEvent } from "../types/agentSession";
+import type { Review } from "../types/review";
 
 const props = defineProps<{ session: AgentSession }>();
 const store = useAgentSessionsStore();
@@ -58,31 +59,61 @@ const diffError = computed(() =>
   isEdit.value && completed.value ? (diff.value?.error ?? null) : null,
 );
 const completing = ref(false);
+// The review this run created, and whether its async checks are still running
+// (drives the footer + the Reviews "running checks…" indicator via the store).
+const createdReviewId = ref<string | null>(null);
+const rechecking = computed(
+  () => createdReviewId.value !== null && reviews.rechecking[createdReviewId.value] === true,
+);
 
-// One-shot: when an edit session completes (result event or process exit), fetch the
-// worktree diff once (immediate covers reopening an already-completed session).
+// One ordered place for completion handling: when an edit run has finished, ensure
+// the diff is loaded (re-fetching if a workspace switch wiped coding.diffs), then —
+// if the worktree is dirty — auto-create the review. `showReview` stays purely
+// presentational. Guards (reviewed/completing) keep this to one review per session.
 watch(
-  completed,
-  async (done) => {
-    if (done && isEdit.value) {
+  [completed, diff],
+  async ([done, d]) => {
+    if (!done || !isEdit.value) return;
+    if (!d) {
       await coding.refreshDiff(props.session.coding_workspace_id);
+      return;
+    }
+    if (!d.is_clean && !d.error && !reviewed.value && !completing.value) {
+      await reviewChanges();
     }
   },
   { immediate: true },
 );
 
+// Auto-create the review from the diff snapshot (instant, no check), then run the
+// project's check asynchronously and update the review in place. Also the manual
+// retry if the creation step errors. Idempotent per session via completing/reviewed.
 async function reviewChanges() {
   if (completing.value) return;
   completing.value = true;
+  let review: Review;
   try {
-    const review = await coding.complete(props.session.coding_workspace_id);
-    reviews.insert(review);
-    reviewed.value = true; // collapse the CTA so a second click can't double-complete
-    toast.success("Review created — see Reviews");
+    review = await coding.complete(props.session.coding_workspace_id, false);
   } catch (e) {
     toast.error(String(e));
+    return;
   } finally {
     completing.value = false;
+  }
+  reviews.insert(review);
+  createdReviewId.value = review.id;
+  reviewed.value = true;
+  toast.success("Review created — see Reviews");
+
+  // Async checks: fill in check results without blocking the review. Best-effort —
+  // the review stands even if the check can't run.
+  reviews.setRechecking(review.id, true);
+  try {
+    reviews.insert(await coding.recheck(review.id));
+  } catch {
+    /* leave the review without check results */
+  } finally {
+    reviews.setRechecking(review.id, false);
   }
 }
 </script>
@@ -119,7 +150,7 @@ async function reviewChanges() {
       </button>
     </footer>
     <footer v-else-if="reviewed" class="sdk-foot" data-testid="sdk-review-done">
-      <span>✓ Review created — see Reviews</span>
+      <span>✓ Review created — {{ rechecking ? "running checks…" : "see Reviews" }}</span>
     </footer>
     <p v-else-if="diffError" class="muted sdk-differr" data-testid="sdk-diff-error">
       Could not read changes — {{ diffError }}
