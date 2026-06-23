@@ -156,6 +156,20 @@ pub fn dispatch_artifact(
     Ok(DispatchResult { results })
 }
 
+/// Prefill goal for a dispatched worktree (task title + source artifact content), or
+/// null for a plain worktree. Best-effort: the frontend seeds the SDK goal textarea.
+/// One short lock, DB reads only. The goal (incl. the full artifact) reaches the
+/// sidecar as argv, as goals already do — acceptable on a single-user host;
+/// credentials are env-only and never travel in argv.
+#[tauri::command]
+pub fn get_dispatched_goal(
+    state: State<'_, Mutex<Connection>>,
+    coding_workspace_id: String,
+) -> Result<Option<String>, String> {
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    svc::resolve_dispatched_goal(&conn, &coding_workspace_id).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

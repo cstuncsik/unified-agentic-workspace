@@ -177,4 +177,103 @@ describe("claude agent sdk (plan-only)", () => {
       },
     );
   });
+
+  it("prefills the goal from a dispatched task and launches the edited goal", async () => {
+    // Author an artifact with one checklist task + a content marker.
+    await (await $("button*=Artifacts")).click();
+    await (await $('[aria-label="New artifact title"]')).setValue("SeedPlan");
+    await (await $("button*=Create")).click();
+    await (await $('[data-testid="artifact-editor"]')).waitForExist({ timeout: 10_000 });
+    // Set the markdown via the DOM (real newlines + input event for v-model).
+    await browser.execute((val) => {
+      const ta = document.querySelector(
+        '[aria-label="Markdown source"]',
+      ) as HTMLTextAreaElement | null;
+      if (ta) {
+        ta.value = val;
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }, "# Seed Plan\n\nSeed context marker line.\n\n- [ ] Wire the seeded goal\n");
+    await (await $('[data-testid="artifact-dirty"]')).waitForExist({ timeout: 5_000 });
+    const editor = await $('[data-testid="artifact-editor"]');
+    await editor.$("button*=Save").click();
+    await browser.waitUntil(
+      async () => !(await $('[data-testid="artifact-dirty"]').isExisting()),
+      { timeout: 10_000, timeoutMsg: "expected the artifact save to persist" },
+    );
+
+    // Dispatch the single task into a known branch.
+    await editor.$("button*=Dispatch").click();
+    const dialog = await $('[data-testid="dispatch-dialog"]');
+    await dialog.waitForDisplayed({ timeout: 5_000 });
+    await browser.waitUntil(
+      async () => (await $$('[data-testid="dispatch-task-row"]').length) === 1,
+      { timeout: 10_000, timeoutMsg: "expected one seeded task row" },
+    );
+    await dialog.$('[aria-label="Task 1 branch"]').setValue("feat/seeded");
+    await dialog.$('[aria-label="Dispatch project"]').selectByVisibleText("SdkProj");
+    await dialog.$('[aria-label="Dispatch repository"]').selectByVisibleText("SdkFixture");
+    const base = await dialog.$('[aria-label="Dispatch base branch"]');
+    await browser.waitUntil(async () => base.isEnabled(), { timeout: 10_000 });
+    await base.selectByVisibleText("main");
+    await dialog.$("button*=Dispatch").click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.execute(
+          () =>
+            document.querySelector('[data-testid="dispatch-dialog"] .results')?.textContent ?? "",
+        )).includes("worktree created"),
+      { timeout: 20_000, timeoutMsg: "expected the dispatch to create a worktree" },
+    );
+    await dialog.$("button*=Close").click();
+
+    // Visit Coding so the worktree list reloads with the dispatched worktree.
+    await (await $("button*=Coding")).click();
+    await browser.waitUntil(
+      async () =>
+        (
+          await browser.execute(
+            () =>
+              [...document.querySelectorAll('[data-testid="coding-row"]')]
+                .map((r) => r.textContent ?? "")
+                .join("\n"),
+          )
+        ).includes("feat/seeded"),
+      { timeout: 15_000, timeoutMsg: "expected the dispatched worktree in Coding" },
+    );
+
+    // In Agents, select the dispatched worktree + SDK + account → goal prefills.
+    await (await $("button*=Agents")).click();
+    await (await $('[aria-label="Agent worktree"]')).selectByVisibleText("feat/seeded");
+    await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Agent SDK");
+    await (await $('[aria-label="Provider account"]')).selectByVisibleText("SDK Acct");
+
+    const goal = await $('[aria-label="Agent goal"]');
+    await browser.waitUntil(
+      async () => {
+        const v = await goal.getValue();
+        return v.includes("Wire the seeded goal") && v.includes("Seed context marker line");
+      },
+      { timeout: 15_000, timeoutMsg: "expected the goal to prefill from the dispatched task" },
+    );
+    // The seeded indicator is shown.
+    expect(await (await $('[data-testid="goal-seeded-hint"]')).isExisting()).toBe(true);
+
+    // Edit the goal, launch, and prove the EDITED goal (not the seed) reached the
+    // sidecar — seed-not-binding.
+    await browser.execute(() => {
+      const ta = document.querySelector(
+        '[aria-label="Agent goal"]',
+      ) as HTMLTextAreaElement | null;
+      if (ta) {
+        ta.value = "EDITED seeded goal run";
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    await (await $("button*=New terminal")).click();
+    await browser.waitUntil(
+      async () => (await allFeedsText()).includes("Planning: EDITED seeded goal run"),
+      { timeout: 15_000, timeoutMsg: "expected the edited goal to reach the sidecar" },
+    );
+  });
 });
