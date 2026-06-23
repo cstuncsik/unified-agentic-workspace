@@ -1,0 +1,23 @@
+src-tauri/src/services/dispatch.rs
+  s_b49f7388e23022::t_e9032ac10266a8 1-6
+  s_b49f7388e23022::t_162c8e79abc0b3 91-92
+  s_b49f7388e23022::t_44925b69bbff49 137-200,202,216-232
+  s_b49f7388e23022::t_c0413d9f61c87d 201,204-215
+  s_b49f7388e23022::t_822b95fa8fb2bb 54-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.9",
+  "base_commit_sha": "7324d2d4495bc0db838eff9d3ff3fe3aae7c29bf",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
