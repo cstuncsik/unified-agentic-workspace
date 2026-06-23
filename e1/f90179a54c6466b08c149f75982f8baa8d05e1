@@ -1,0 +1,20 @@
+docs/superpowers/specs/2026-06-23-completion-review-automation-design.md
+  s_b49f7388e23022::t_8375200678dd02 1-60,62-118
+  s_b49f7388e23022::t_05e7bd98aeedd4 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.10",
+  "base_commit_sha": "e1f90179a54c6466b08c149f75982f8baa8d05e1",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
