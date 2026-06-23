@@ -98,11 +98,12 @@ describe("claude agent sdk (plan-only)", () => {
     expect((await $$('[data-testid="sdk-review-cta"]')).length).toBe(0);
     // Plan mode never edits, so completion must NOT auto-create a review. The "Done"
     // wait earlier in this test already gated on a positive completion signal, so this
-    // is not racy.
+    // is not racy. `sdk-review-done` renders only when a review was created (reviewed
+    // flips true), so its absence is a sufficient negative — and we assert it WITHOUT
+    // navigating to Reviews, because leaving + returning to Agents would remount the
+    // view and reset the CLI selection the next test relies on. The edit-mode test
+    // covers the positive Reviews-count assertion.
     expect((await $$('[data-testid="sdk-review-done"]')).length).toBe(0);
-    await (await $("button*=Reviews")).click();
-    expect(await $$('[data-testid="review-row"]').length).toBe(0);
-    await (await $("button*=Agents")).click();
   });
 
   it("requires an account for the SDK adapter", async () => {

@@ -66,19 +66,23 @@ const rechecking = computed(
   () => createdReviewId.value !== null && reviews.rechecking[createdReviewId.value] === true,
 );
 
-// One ordered place for completion handling: when an edit run has finished, ensure
-// the diff is loaded (re-fetching if a workspace switch wiped coding.diffs), then —
-// if the worktree is dirty — auto-create the review. `showReview` stays purely
-// presentational. Guards (reviewed/completing) keep this to one review per session.
+// One ordered place for completion handling. When an edit run finishes, REFRESH the
+// diff once on the completion transition — the cached diff is often a stale *clean*
+// snapshot taken when the worktree was created (CodingView.createWorktree calls
+// refreshDiff), so we must re-read it to see the agent's changes; also re-fetch if a
+// workspace switch wiped coding.diffs. Then, once the fresh diff shows changes,
+// auto-create the review. `showReview` stays purely presentational; the
+// reviewed/completing guards keep this to one review per session.
 watch(
   [completed, diff],
-  async ([done, d]) => {
-    if (!done || !isEdit.value) return;
-    if (!d) {
+  async ([done, d], prev) => {
+    if (!done || !isEdit.value || reviewed.value) return;
+    const justCompleted = prev ? !prev[0] : false;
+    if (justCompleted || !d) {
       await coding.refreshDiff(props.session.coding_workspace_id);
       return;
     }
-    if (!d.is_clean && !d.error && !reviewed.value && !completing.value) {
+    if (!d.is_clean && !d.error && !completing.value) {
       await reviewChanges();
     }
   },
