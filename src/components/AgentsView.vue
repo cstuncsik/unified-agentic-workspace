@@ -6,6 +6,7 @@ import { useWorkspacesStore } from "../stores/workspaces";
 import { useProviderAccountsStore } from "../stores/providerAccounts";
 import { useAccountModelsStore } from "../stores/accountModels";
 import { useToast } from "../composables/useToast";
+import * as codingApi from "../api/codingWorkspaces";
 import TerminalTab from "./TerminalTab.vue";
 import SdkRunView from "./SdkRunView.vue";
 
@@ -23,6 +24,16 @@ const newGoal = ref("");
 const newMode = ref("plan");
 const newModelId = ref("");
 const starting = ref(false);
+
+// Goal prefill from a dispatched worktree. `seededValue` is the last value we
+// seeded (for the dirty-check); `goalToken` (non-reactive, like the store's
+// loadToken) makes "last prefill started wins" deterministic across async fetches.
+const seededValue = ref("");
+const seeded = computed(() => newGoal.value === seededValue.value && seededValue.value !== "");
+const goalBytes = computed(() => new TextEncoder().encode(newGoal.value).length);
+const goalKb = computed(() => Math.round(goalBytes.value / 1000));
+const goalTooLarge = computed(() => selectedIsSdk.value && goalBytes.value > 100_000);
+let goalToken = 0;
 
 onMounted(async () => {
   await store.loadAdapters();
@@ -60,11 +71,16 @@ const accountLabel = (id: string | null) =>
 
 // Reset the chosen account when the adapter changes (its provider — and thus the
 // valid accounts — differ); a stale account would fail the provider check.
-watch(newAdapterId, () => {
+watch(newAdapterId, (val) => {
   newAccountId.value = "";
   newGoal.value = "";
   newMode.value = "plan";
   newModelId.value = "";
+  seededValue.value = "";
+  // Switched into the SDK with a worktree already chosen → seed now. Use
+  // adapterKind(val) (not the lazy selectedIsSdk) so correctness doesn't depend on
+  // computed-evaluation timing.
+  if (adapterKind(val) === "sdk" && newWorktreeId.value) prefillGoal(newWorktreeId.value);
 });
 
 // When the account changes, reset the model and lazy-load that account's models
@@ -76,10 +92,12 @@ watch(newAccountId, (val) => {
   }
 });
 
-// If the worktree is chosen after the account, fetch models then (cache-hit otherwise).
+// On worktree change (SDK): lazy-load that account's models (if an account is set)
+// and seed the goal from the dispatched task.
 watch(newWorktreeId, (val) => {
-  if (val && selectedIsSdk.value && newAccountId.value) {
-    accountModels.loadModels(val, newAccountId.value);
+  if (val && selectedIsSdk.value) {
+    if (newAccountId.value) accountModels.loadModels(val, newAccountId.value);
+    prefillGoal(val);
   }
 });
 
@@ -103,6 +121,7 @@ watch(
     newGoal.value = "";
     newMode.value = "plan";
     newModelId.value = "";
+    seededValue.value = "";
 
     const remembered = newId ? store.lastActiveByWorkspace[newId] : null;
     if (remembered && visibleTabs.value.some((t) => t.session.id === remembered)) {
@@ -114,6 +133,25 @@ watch(
     }
   },
 );
+
+// Seed the goal from a dispatched worktree (SDK-only). Best-effort: a failed fetch
+// never clobbers or toasts. Dirty-checked so it never overwrites the user's edits.
+async function prefillGoal(id: string) {
+  if (!id) return;
+  const token = ++goalToken;
+  let goal: string | null = null;
+  try {
+    goal = await codingApi.getDispatchedGoal(id);
+  } catch {
+    return;
+  }
+  if (token !== goalToken) return; // a newer prefill superseded us
+  if (newWorktreeId.value !== id || !selectedIsSdk.value) return;
+  if (newGoal.value === seededValue.value || newGoal.value.trim() === "") {
+    newGoal.value = goal ?? "";
+    seededValue.value = goal ?? "";
+  }
+}
 
 async function openTerminal() {
   if (!canStart.value) return;
@@ -227,10 +265,17 @@ async function openTerminal() {
           v-if="selectedIsSdk"
           v-model="newGoal"
           class="re-input new__goal"
-          rows="2"
+          :rows="seeded ? 8 : 2"
           placeholder="What should the agent do?"
           aria-label="Agent goal"
         ></textarea>
+        <p v-if="seeded" class="muted new__hint" data-testid="goal-seeded-hint">
+          Prefilled from the dispatched task — editable.
+        </p>
+        <p v-if="goalTooLarge" class="muted new__hint" data-testid="goal-too-large">
+          Plan is large (~{{ goalKb }} KB) — trim before starting; very large goals can fail to
+          launch.
+        </p>
         <p v-if="selectedIsSdk && newMode === 'edit'" class="muted new__hint">
           Edit mode applies file changes but can't run builds or tests; the review verifies.
         </p>

@@ -36,3 +36,7 @@ export function discardCodingWorkspace(id: string, force: boolean): Promise<bool
 export function completeCodingWorkspace(id: string): Promise<Review> {
   return invoke<Review>("complete_coding_workspace", { codingWorkspaceId: id });
 }
+
+export function getDispatchedGoal(id: string): Promise<string | null> {
+  return invoke<string | null>("get_dispatched_goal", { codingWorkspaceId: id });
+}
