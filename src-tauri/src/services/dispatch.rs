@@ -35,6 +35,18 @@ pub fn extract_tasks(markdown: &str) -> Vec<String> {
 // editable dispatch rows; the backend only validates incoming branch names
 // (validate_dispatch) and lets git reject anything else per-task.
 
+/// Assemble the SDK agent's goal from a dispatched task: the task title as the
+/// instruction, then the source artifact's content as plan context. Pure. The title
+/// legitimately repeats inside the artifact (it was extracted from it); the `Task:`
+/// line is what distinguishes N worktrees dispatched from one artifact.
+pub fn format_dispatched_goal(task_title: &str, artifact_content: &str) -> String {
+    format!(
+        "Task: {}\n\nContext — the plan this task was dispatched from:\n\n{}",
+        task_title.trim(),
+        artifact_content
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -63,5 +75,23 @@ mod tests {
         let md = "- [ ] Café déjà — vu\n";
         let tasks = extract_tasks(md);
         assert_eq!(tasks, vec!["Café déjà — vu"]);
+    }
+
+    #[test]
+    fn formats_task_then_context_then_content() {
+        let g = format_dispatched_goal("Add login", "## Steps\n- do it\n");
+        assert_eq!(
+            g,
+            "Task: Add login\n\nContext — the plan this task was dispatched from:\n\n## Steps\n- do it\n"
+        );
+    }
+
+    #[test]
+    fn format_trims_title_and_keeps_multibyte() {
+        let g = format_dispatched_goal("  Café déjà — vu  ", "café\n");
+        assert_eq!(
+            g,
+            "Task: Café déjà — vu\n\nContext — the plan this task was dispatched from:\n\ncafé\n"
+        );
     }
 }
