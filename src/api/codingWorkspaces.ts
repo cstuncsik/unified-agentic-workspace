@@ -33,8 +33,12 @@ export function discardCodingWorkspace(id: string, force: boolean): Promise<bool
   return invoke<boolean>("discard_coding_workspace", { id, force });
 }
 
-export function completeCodingWorkspace(id: string): Promise<Review> {
-  return invoke<Review>("complete_coding_workspace", { codingWorkspaceId: id });
+export function completeCodingWorkspace(id: string, runCheck = true): Promise<Review> {
+  return invoke<Review>("complete_coding_workspace", { codingWorkspaceId: id, runCheck });
+}
+
+export function recheckCodingWorkspace(reviewId: string): Promise<Review> {
+  return invoke<Review>("recheck_coding_workspace", { reviewId });
 }
 
 export function getDispatchedGoal(id: string): Promise<string | null> {
