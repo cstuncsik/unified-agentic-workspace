@@ -259,6 +259,7 @@ async function discardWorktree(id: string, branch: string) {
               Create review
             </button>
             <button
+              v-if="cw.status !== 'needs-review'"
               type="button"
               class="re-button"
               data-variant="brand"
