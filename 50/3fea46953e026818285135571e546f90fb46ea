@@ -1,0 +1,20 @@
+docs/superpowers/plans/2026-06-23-completion-review-automation.md
+  s_b49f7388e23022::t_1cb008d4dd8c7b 695,698-702
+  s_b49f7388e23022::t_2dfc56c133a65e 1-694,696-697,703-779
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.10",
+  "base_commit_sha": "503fea46953e026818285135571e546f90fb46ea",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
