@@ -235,4 +235,45 @@ mod tests {
         assert!(dir.join("probe").exists());
         std::env::remove_var("UAW_KEYSTORE_DIR");
     }
+
+    // Cross-process probes for the REAL OsKeyStore. Run as TWO separate `cargo test`
+    // invocations (see .github/workflows/keystore.yml): the set runs in one process,
+    // the get in another. A real OS keychain persists across processes; keyring's
+    // in-memory `mock` fallback does not, so a dropped backend feature fails here.
+    // #[ignore]d so a normal `cargo test` (machine without a keychain) skips them.
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    const PROBE_REF: &str = "uaw-keystore-ci-probe";
+
+    #[test]
+    #[ignore = "hits the real OS keychain; run via the keystore CI job or locally"]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    fn os_keystore_set_probe() {
+        let store = OsKeyStore::new();
+        store
+            .set(PROBE_REF, "probe-secret-v1")
+            .expect("set on the real OS keychain");
+        // Intentionally does NOT delete — os_keystore_get_delete_probe (a separate
+        // process) reads it to prove cross-process persistence.
+    }
+
+    #[test]
+    #[ignore = "hits the real OS keychain; run after os_keystore_set_probe in a SEPARATE process"]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    fn os_keystore_get_delete_probe() {
+        let store = OsKeyStore::new();
+        // Cross-process persistence: the value set by os_keystore_set_probe in another
+        // process must be visible. A process-global `mock` backend returns None here.
+        assert_eq!(
+            store.get(PROBE_REF).expect("get on the real OS keychain"),
+            Some("probe-secret-v1".to_string()),
+            "key did not persist across processes — backend may be the in-memory mock"
+        );
+        // Overwrite (last-write-wins).
+        store.set(PROBE_REF, "probe-secret-v2").unwrap();
+        assert_eq!(store.get(PROBE_REF).unwrap(), Some("probe-secret-v2".to_string()));
+        // Delete, then missing -> None, then delete-missing -> Ok (idempotent contract).
+        store.delete(PROBE_REF).unwrap();
+        assert_eq!(store.get(PROBE_REF).unwrap(), None);
+        assert!(store.delete(PROBE_REF).is_ok());
+    }
 }
