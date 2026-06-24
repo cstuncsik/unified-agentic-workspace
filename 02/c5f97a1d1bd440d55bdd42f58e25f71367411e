@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-24-cross-platform-keystore.md
+  s_b49f7388e23022::t_7c74ff2883b0f0 1-494
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "02c5f97a1d1bd440d55bdd42f58e25f71367411e",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
