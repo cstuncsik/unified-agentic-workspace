@@ -1,6 +1,8 @@
 //! Secret storage abstraction. The production backend is the OS keychain
-//! (`OsKeyStore`, macOS only for now); dev/e2e use a plaintext `FileKeyStore`
+//! (`OsKeyStore`): macOS Keychain, Windows Credential Manager, or Linux Secret
+//! Service (via keyring's per-OS backends). dev/e2e use a plaintext `FileKeyStore`
 //! gated behind `debug_assertions` so a release binary can never select it.
+//! Targets without a wired backend get an `Err` stub.
 //!
 //! Contract for every impl:
 //! - `get` on a missing ref returns `Ok(None)` (not an error).
@@ -27,24 +29,24 @@ pub trait KeyStore: Send + Sync {
 
 const SERVICE: &str = "io.n8n.uaw";
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub struct OsKeyStore;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl OsKeyStore {
     pub fn new() -> Self {
         OsKeyStore
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl Default for OsKeyStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl KeyStore for OsKeyStore {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError> {
         let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
@@ -69,27 +71,26 @@ impl KeyStore for OsKeyStore {
     }
 }
 
-// Non-macOS: no native keychain wired yet. Present only so the crate compiles on
-// Linux (Docker e2e) / Windows; never invoked there because dev/e2e select
-// FileKeyStore via UAW_KEYSTORE_DIR.
-#[cfg(not(target_os = "macos"))]
+// Targets with no keyring backend (not macOS/Windows/Linux): present only so the
+// crate compiles there; key ops fail closed.
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 pub struct OsKeyStore;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl OsKeyStore {
     pub fn new() -> Self {
         OsKeyStore
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl Default for OsKeyStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl KeyStore for OsKeyStore {
     fn set(&self, _key_ref: &str, _secret: &str) -> Result<(), KeyStoreError> {
         Err(KeyStoreError)
