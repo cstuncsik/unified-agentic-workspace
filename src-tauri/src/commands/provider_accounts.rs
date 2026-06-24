@@ -5,7 +5,7 @@ use tauri::State;
 
 use crate::models::provider_account::{self, ProviderAccount};
 use crate::models::workspace;
-use crate::services::keystore::{self, KeyStore};
+use crate::services::keystore::{self, KeyStore, KeyStoreError};
 use crate::util::new_id;
 
 /// Providers a user may register in this slice.
@@ -46,8 +46,12 @@ pub fn create_provider_account_inner(
 
     // 3. Store the secret. Drop the backend error (it carries nothing) and return
     //    a fixed opaque message.
-    if store.set(&keychain_ref, api_key).is_err() {
-        return Err("Failed to store key".into());
+    match store.set(&keychain_ref, api_key) {
+        Ok(()) => {}
+        Err(KeyStoreError::NoBackend) => {
+            return Err("No OS keychain is available on this system.".into())
+        }
+        Err(KeyStoreError::Failure) => return Err("Failed to store key".into()),
     }
 
     // 4. Insert metadata; roll back the keychain entry on failure.
@@ -106,8 +110,12 @@ pub fn delete_provider_account_inner(
 ) -> Result<bool, String> {
     if let Some(account) = provider_account::get(conn, id).map_err(|_| "Failed to delete account")? {
         // Idempotent: a missing keychain entry is success.
-        if store.delete(&account.keychain_ref).is_err() {
-            return Err("Failed to delete account".into());
+        match store.delete(&account.keychain_ref) {
+            Ok(()) => {}
+            Err(KeyStoreError::NoBackend) => {
+                return Err("No OS keychain is available on this system.".into())
+            }
+            Err(KeyStoreError::Failure) => return Err("Failed to delete account".into()),
         }
     }
     provider_account::delete(conn, id).map_err(|_| "Failed to delete account".into())
@@ -157,13 +165,26 @@ mod tests {
     struct FailingSetStore;
     impl KeyStore for FailingSetStore {
         fn set(&self, _r: &str, _s: &str) -> Result<(), KeyStoreError> {
-            Err(KeyStoreError)
+            Err(KeyStoreError::Failure)
         }
         fn get(&self, _r: &str) -> Result<Option<String>, KeyStoreError> {
             Ok(None)
         }
         fn delete(&self, _r: &str) -> Result<(), KeyStoreError> {
             Ok(())
+        }
+    }
+
+    struct NoBackendStore;
+    impl KeyStore for NoBackendStore {
+        fn set(&self, _r: &str, _s: &str) -> Result<(), KeyStoreError> {
+            Err(KeyStoreError::NoBackend)
+        }
+        fn get(&self, _r: &str) -> Result<Option<String>, KeyStoreError> {
+            Err(KeyStoreError::NoBackend)
+        }
+        fn delete(&self, _r: &str) -> Result<(), KeyStoreError> {
+            Err(KeyStoreError::NoBackend)
         }
     }
 
@@ -236,6 +257,21 @@ mod tests {
         assert_eq!(err, "Failed to store key");
         assert!(!err.contains(SENTINEL));
         // No row was written when the keystore rejected the secret.
+        assert!(provider_account::list_by_workspace(&conn, &ws)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn no_backend_maps_to_no_keychain_message_and_writes_nothing() {
+        let conn = migrated_conn();
+        let ws = make_ws(&conn);
+        let err =
+            create_provider_account_inner(&conn, &NoBackendStore, &ws, "anthropic", "n", SENTINEL)
+                .unwrap_err();
+        assert_eq!(err, "No OS keychain is available on this system.");
+        assert!(!err.contains(SENTINEL));
+        // No row was written when the keystore had no backend.
         assert!(provider_account::list_by_workspace(&conn, &ws)
             .unwrap()
             .is_empty());
