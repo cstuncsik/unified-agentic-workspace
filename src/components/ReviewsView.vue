@@ -58,6 +58,13 @@ async function setStatus(id: string, status: string) {
           @click="selectedId = r.id"
         >
           <span class="review__summary">{{ r.summary }}</span>
+          <span
+            v-if="reviews.rechecking[r.id]"
+            class="review__checks"
+            data-testid="review-rechecking"
+          >
+            running checks…
+          </span>
           <span class="re-badge" :data-tone="reviewTone(r.status)">{{ r.status }}</span>
         </li>
       </ul>
@@ -154,8 +161,17 @@ async function setStatus(id: string, status: string) {
 }
 
 .review__summary {
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.review__checks {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--re-color-text-muted);
   white-space: nowrap;
 }
 

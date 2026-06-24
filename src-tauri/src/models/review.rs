@@ -138,6 +138,40 @@ pub fn update_status(
     }
 }
 
+/// Update a review's computed fields (everything except identity + verdict status)
+/// in place. Used by `recheck` to fill in check results after an instant,
+/// check-less creation. `files`/`risk_notes` re-serialize to their JSON columns.
+#[allow(clippy::too_many_arguments)]
+pub fn update_results(
+    conn: &Connection,
+    id: &str,
+    summary: &str,
+    status_short: &str,
+    diff_stat: &str,
+    files: &[String],
+    test_command: Option<&str>,
+    test_output: &str,
+    risk_notes: &[String],
+) -> rusqlite::Result<Option<Review>> {
+    let now = now_rfc3339();
+    let files_json = serde_json::to_string(files).unwrap_or_else(|_| "[]".to_string());
+    let risk_json = serde_json::to_string(risk_notes).unwrap_or_else(|_| "[]".to_string());
+    let affected = conn.execute(
+        "UPDATE reviews SET summary = ?2, status_short = ?3, diff_stat = ?4, files_json = ?5,
+           test_command = ?6, test_output = ?7, risk_notes_json = ?8, updated_at = ?9
+         WHERE id = ?1",
+        params![
+            id, summary, status_short, diff_stat, files_json, test_command, test_output,
+            risk_json, now
+        ],
+    )?;
+    if affected == 0 {
+        Ok(None)
+    } else {
+        get(conn, id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,6 +271,38 @@ mod tests {
             .expect("updated");
         assert_eq!(approved.status, "approved");
         assert!(update_status(&conn, "missing", "approved").unwrap().is_none());
+    }
+
+    #[test]
+    fn update_results_replaces_computed_fields_keeping_status() {
+        let conn = migrated_conn();
+        let (ws, cw) = fixtures(&conn);
+        let review = make(&conn, &ws, &cw); // status "pending", test_output "", risk ["Large change"]
+
+        let updated = update_results(
+            &conn,
+            &review.id,
+            "2 files changed",
+            " M a\n M b",
+            " a | 1 +",
+            &["a".to_string(), "b".to_string()],
+            Some("pnpm test"),
+            "PASS (2 tests)",
+            &["Checks passed".to_string()],
+        )
+        .unwrap()
+        .expect("updated review");
+
+        assert_eq!(updated.id, review.id);
+        assert_eq!(updated.status, "pending"); // status is NOT touched
+        assert_eq!(updated.summary, "2 files changed");
+        assert_eq!(updated.files, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(updated.test_output, "PASS (2 tests)");
+        assert_eq!(updated.risk_notes, vec!["Checks passed".to_string()]);
+
+        assert!(update_results(&conn, "missing", "", "", "", &[], None, "", &[])
+            .unwrap()
+            .is_none());
     }
 
     #[test]

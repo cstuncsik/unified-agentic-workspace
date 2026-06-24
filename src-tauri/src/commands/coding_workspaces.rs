@@ -175,15 +175,58 @@ pub fn discard_coding_workspace(
 /// Maximum wall-clock time a configured check may run before it is killed.
 const CHECK_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// Complete a coding workspace: snapshot the diff, run the project's configured
-/// check (if any), persist a review with the captured output and risk flags, move
-/// the workspace to Needs Review, and record a completion event. A failing or
-/// timed-out check still completes (with a risk flag); only a snapshot or DB
-/// error aborts.
+/// The computed fields of a review: the diff snapshot plus (optionally) the
+/// project's check outcome. No DB, no lock — the testable seam shared by
+/// `complete_coding_workspace` and `recheck_coding_workspace`.
+struct ReviewFields {
+    summary: String,
+    status_short: String,
+    diff_stat: String,
+    files: Vec<String>,
+    test_output: String,
+    risk_notes: Vec<String>,
+    checks_ran: bool,
+    checks_passed: bool,
+}
+
+fn compute_review_fields(
+    worktree: &Path,
+    test_command: Option<&str>,
+    run_check: bool,
+) -> Result<ReviewFields, String> {
+    let snapshot = git::review_snapshot(worktree);
+    if let Some(e) = snapshot.error {
+        return Err(e);
+    }
+    let outcome = if run_check {
+        match test_command {
+            Some(cmd) => check::run_check(worktree, cmd, CHECK_TIMEOUT),
+            None => check::CheckOutcome::not_run(),
+        }
+    } else {
+        check::CheckOutcome::not_run()
+    };
+    let summary = review_svc::summarize(&snapshot);
+    let risk_notes =
+        completion::augment_risk_notes(review_svc::compute_risk_notes(&snapshot), &outcome);
+    let test_output = completion::format_test_output(test_command.unwrap_or(""), &outcome);
+    Ok(ReviewFields {
+        summary,
+        status_short: snapshot.status_short,
+        diff_stat: snapshot.diff_stat,
+        files: snapshot.files,
+        test_output,
+        risk_notes,
+        checks_ran: outcome.ran,
+        checks_passed: outcome.passed(),
+    })
+}
+
 #[tauri::command]
 pub fn complete_coding_workspace(
     state: State<'_, Mutex<Connection>>,
     coding_workspace_id: String,
+    run_check: bool,
 ) -> Result<Review, String> {
     // Resolve the workspace + worktree path + configured command under the lock,
     // then release it before the (potentially slow) git + check work.
@@ -202,28 +245,15 @@ pub fn complete_coding_workspace(
         (cw.workspace_id, cw.worktree_path, test_command)
     };
 
-    let snapshot = git::review_snapshot(Path::new(&worktree_path));
-    if let Some(e) = snapshot.error {
-        return Err(e);
-    }
-
-    let outcome = match &test_command {
-        Some(cmd) => check::run_check(Path::new(&worktree_path), cmd, CHECK_TIMEOUT),
-        None => check::CheckOutcome::not_run(),
-    };
-
-    let summary = review_svc::summarize(&snapshot);
-    let risk_notes =
-        completion::augment_risk_notes(review_svc::compute_risk_notes(&snapshot), &outcome);
-    let test_output =
-        completion::format_test_output(test_command.as_deref().unwrap_or(""), &outcome);
+    let fields =
+        compute_review_fields(Path::new(&worktree_path), test_command.as_deref(), run_check)?;
 
     let review_id = new_id();
     let payload = serde_json::json!({
         "coding_workspace_id": coding_workspace_id,
         "review_id": review_id,
-        "checks_ran": outcome.ran,
-        "checks_passed": outcome.passed(),
+        "checks_ran": fields.checks_ran,
+        "checks_passed": fields.checks_passed,
     })
     .to_string();
 
@@ -234,13 +264,13 @@ pub fn complete_coding_workspace(
         &review_id,
         &workspace_id,
         &coding_workspace_id,
-        &summary,
-        &snapshot.status_short,
-        &snapshot.diff_stat,
-        &snapshot.files,
+        &fields.summary,
+        &fields.status_short,
+        &fields.diff_stat,
+        &fields.files,
         test_command.as_deref(),
-        &test_output,
-        &risk_notes,
+        &fields.test_output,
+        &fields.risk_notes,
     )
     .map_err(|e| e.to_string())?;
     coding_workspace::update_status(&conn, &coding_workspace_id, "needs-review")
@@ -255,6 +285,52 @@ pub fn complete_coding_workspace(
     .map_err(|e| e.to_string())?;
 
     Ok(review)
+}
+
+/// Re-run the project's check command for an existing review and update it in place.
+/// The async second half of completion → review automation: the auto path creates the
+/// review instantly (`run_check=false`), then calls this to fill in check results
+/// without blocking the review's appearance.
+#[tauri::command]
+pub fn recheck_coding_workspace(
+    state: State<'_, Mutex<Connection>>,
+    review_id: String,
+) -> Result<Review, String> {
+    let (worktree_path, test_command) = {
+        let conn = state.lock().map_err(|e| e.to_string())?;
+        let Some(review) = review::get(&conn, &review_id).map_err(|e| e.to_string())? else {
+            return Err(format!("Review '{review_id}' does not exist"));
+        };
+        let Some(cw) = coding_workspace::get(&conn, &review.coding_workspace_id)
+            .map_err(|e| e.to_string())?
+        else {
+            return Err(format!(
+                "Coding workspace '{}' does not exist",
+                review.coding_workspace_id
+            ));
+        };
+        let test_command = project::get(&conn, &cw.project_id)
+            .map_err(|e| e.to_string())?
+            .and_then(|p| project::test_command_from_settings(&p.settings_json));
+        (cw.worktree_path, test_command)
+    };
+
+    let fields = compute_review_fields(Path::new(&worktree_path), test_command.as_deref(), true)?;
+
+    let conn = state.lock().map_err(|e| e.to_string())?;
+    review::update_results(
+        &conn,
+        &review_id,
+        &fields.summary,
+        &fields.status_short,
+        &fields.diff_stat,
+        &fields.files,
+        test_command.as_deref(),
+        &fields.test_output,
+        &fields.risk_notes,
+    )
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| format!("Review '{review_id}' does not exist"))
 }
 
 #[cfg(test)]
@@ -288,6 +364,29 @@ mod tests {
         assert!(wt.exists());
         git::remove_worktree(&repo, &wt, true).unwrap();
         assert!(!wt.exists());
+        std::fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn compute_review_fields_runs_check_when_enabled() {
+        let repo = temp_git_repo();
+        std::fs::write(repo.join("new.txt"), "x\n").unwrap(); // dirty the worktree
+        let pass = compute_review_fields(&repo, Some("true"), true).unwrap();
+        assert!(pass.checks_ran);
+        assert!(pass.checks_passed);
+        let fail = compute_review_fields(&repo, Some("false"), true).unwrap();
+        assert!(fail.checks_ran);
+        assert!(!fail.checks_passed);
+        std::fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn compute_review_fields_skips_check_when_disabled_or_no_command() {
+        let repo = temp_git_repo();
+        let disabled = compute_review_fields(&repo, Some("true"), false).unwrap();
+        assert!(!disabled.checks_ran);
+        let none = compute_review_fields(&repo, None, true).unwrap();
+        assert!(!none.checks_ran);
         std::fs::remove_dir_all(&repo).ok();
     }
 }

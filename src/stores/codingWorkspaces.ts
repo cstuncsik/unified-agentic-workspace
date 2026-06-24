@@ -76,13 +76,17 @@ export const useCodingWorkspacesStore = defineStore("codingWorkspaces", () => {
     diffs.value = next;
   }
 
-  async function complete(id: string): Promise<Review> {
-    const review = await api.completeCodingWorkspace(id);
+  async function complete(id: string, runCheck = true): Promise<Review> {
+    const review = await api.completeCodingWorkspace(id, runCheck);
     // Completion deterministically moves the workspace to needs-review.
     const i = list.value.findIndex((c) => c.id === id);
     if (i >= 0) list.value[i] = { ...list.value[i], status: "needs-review" };
     return review;
   }
 
-  return { list, loading, error, diffs, load, create, refreshDiff, markReady, discard, complete };
+  async function recheck(reviewId: string): Promise<Review> {
+    return api.recheckCodingWorkspace(reviewId);
+  }
+
+  return { list, loading, error, diffs, load, create, refreshDiff, markReady, discard, complete, recheck };
 });

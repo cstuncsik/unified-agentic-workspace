@@ -54,5 +54,12 @@ export const useReviewsStore = defineStore("reviews", () => {
     else list.value.unshift(review);
   }
 
-  return { list, loading, error, load, createForCodingWorkspace, updateStatus, insert };
+  // Per-review "checks are running" flags, for the async recheck after an instant,
+  // check-less auto-review. Keyed by review id.
+  const rechecking = ref<Record<string, boolean>>({});
+  function setRechecking(id: string, value: boolean) {
+    rechecking.value = { ...rechecking.value, [id]: value };
+  }
+
+  return { list, loading, error, load, createForCodingWorkspace, updateStatus, insert, rechecking, setRechecking };
 });
