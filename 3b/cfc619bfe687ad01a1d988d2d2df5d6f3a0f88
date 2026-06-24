@@ -1,0 +1,22 @@
+docs/superpowers/specs/2026-06-24-cross-platform-keystore-design.md
+  s_b49f7388e23022::t_1da865a3e3043f 75
+  s_b49f7388e23022::t_08096f4e9166fd 56
+  s_b49f7388e23022::t_20b73775907347 1-28,30-55,57-74
+  s_b49f7388e23022::t_58d73423451f7c 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "3bcfc619bfe687ad01a1d988d2d2df5d6f3a0f88",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
