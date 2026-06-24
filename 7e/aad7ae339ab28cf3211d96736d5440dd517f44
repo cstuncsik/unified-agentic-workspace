@@ -1,0 +1,21 @@
+README.md
+  s_b49f7388e23022::t_b8ef79c7c3cd5e 120-130
+.github/workflows/keystore.yml
+  s_b49f7388e23022::t_ca5a11ec9e948d 1-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "7eaad7ae339ab28cf3211d96736d5440dd517f44",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
