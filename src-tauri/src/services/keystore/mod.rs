@@ -1,19 +1,25 @@
 //! Secret storage abstraction. The production backend is the OS keychain
-//! (`OsKeyStore`, macOS only for now); dev/e2e use a plaintext `FileKeyStore`
+//! (`OsKeyStore`): macOS Keychain, Windows Credential Manager, or Linux Secret
+//! Service (via keyring's per-OS backends). dev/e2e use a plaintext `FileKeyStore`
 //! gated behind `debug_assertions` so a release binary can never select it.
+//! Targets without a wired backend get an `Err` stub.
 //!
 //! Contract for every impl:
 //! - `get` on a missing ref returns `Ok(None)` (not an error).
 //! - `delete` on a missing ref returns `Ok(())` (idempotent).
 //! - `set` overwrites an existing ref (last write wins).
 
-/// Dataless keystore error: it signals failure only, carrying nothing the command
-/// layer could accidentally surface. The underlying `keyring`/IO error is dropped
-/// at the boundary; commands map this to a fixed, secret-free string. (The backend
-/// has no logging facility — if one is added project-wide, reintroduce diagnostics
-/// here through it rather than ad-hoc printing.)
+/// Dataless keystore error: signals failure only, carrying nothing the command
+/// layer could leak. Two variants so a "no OS keychain on this system" condition
+/// (no secret) can be surfaced distinctly from a generic failure.
 #[derive(Debug)]
-pub struct KeyStoreError;
+pub enum KeyStoreError {
+    /// No usable OS keychain (e.g. Linux with no Secret Service provider, a locked
+    /// login keyring, or no session bus).
+    NoBackend,
+    /// Any other failure (the underlying error is dropped at this boundary).
+    Failure,
+}
 
 pub trait KeyStore: Send + Sync {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError>;
@@ -27,78 +33,91 @@ pub trait KeyStore: Send + Sync {
 
 const SERVICE: &str = "io.n8n.uaw";
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub struct OsKeyStore;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl OsKeyStore {
     pub fn new() -> Self {
         OsKeyStore
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl Default for OsKeyStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(target_os = "macos")]
+/// Map a keyring error to the dataless `KeyStoreError`. "No usable keychain"
+/// conditions (no provider / locked / no session bus) surface as `NoStorageAccess`
+/// / `PlatformFailure`; everything else is a generic `Failure`. (Both carry a boxed
+/// source in keyring v3, hence the `(_)`.)
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+fn map_keyring_err(e: keyring::Error) -> KeyStoreError {
+    match e {
+        keyring::Error::NoStorageAccess(_) | keyring::Error::PlatformFailure(_) => {
+            KeyStoreError::NoBackend
+        }
+        _ => KeyStoreError::Failure,
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 impl KeyStore for OsKeyStore {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError> {
-        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
-        entry.set_password(secret).map_err(|_| KeyStoreError)
+        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(map_keyring_err)?;
+        entry.set_password(secret).map_err(map_keyring_err)
     }
 
     fn get(&self, key_ref: &str) -> Result<Option<String>, KeyStoreError> {
-        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
+        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(map_keyring_err)?;
         match entry.get_password() {
             Ok(s) => Ok(Some(s)),
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(KeyStoreError),
+            Err(e) => Err(map_keyring_err(e)),
         }
     }
 
     fn delete(&self, key_ref: &str) -> Result<(), KeyStoreError> {
-        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(|_| KeyStoreError)?;
+        let entry = keyring::Entry::new(SERVICE, key_ref).map_err(map_keyring_err)?;
         match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => Err(KeyStoreError),
+            Err(e) => Err(map_keyring_err(e)),
         }
     }
 }
 
-// Non-macOS: no native keychain wired yet. Present only so the crate compiles on
-// Linux (Docker e2e) / Windows; never invoked there because dev/e2e select
-// FileKeyStore via UAW_KEYSTORE_DIR.
-#[cfg(not(target_os = "macos"))]
+// Targets with no keyring backend (not macOS/Windows/Linux): present only so the
+// crate compiles there; key ops fail closed.
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 pub struct OsKeyStore;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl OsKeyStore {
     pub fn new() -> Self {
         OsKeyStore
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl Default for OsKeyStore {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl KeyStore for OsKeyStore {
     fn set(&self, _key_ref: &str, _secret: &str) -> Result<(), KeyStoreError> {
-        Err(KeyStoreError)
+        Err(KeyStoreError::NoBackend)
     }
     fn get(&self, _key_ref: &str) -> Result<Option<String>, KeyStoreError> {
-        Err(KeyStoreError)
+        Err(KeyStoreError::NoBackend)
     }
     fn delete(&self, _key_ref: &str) -> Result<(), KeyStoreError> {
-        Err(KeyStoreError)
+        Err(KeyStoreError::NoBackend)
     }
 }
 
@@ -132,14 +151,14 @@ impl FileKeyStore {
 #[cfg(debug_assertions)]
 impl KeyStore for FileKeyStore {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError> {
-        std::fs::write(self.path(key_ref), secret).map_err(|_| KeyStoreError)
+        std::fs::write(self.path(key_ref), secret).map_err(|_| KeyStoreError::Failure)
     }
 
     fn get(&self, key_ref: &str) -> Result<Option<String>, KeyStoreError> {
         match std::fs::read_to_string(self.path(key_ref)) {
             Ok(s) => Ok(Some(s)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(_) => Err(KeyStoreError),
+            Err(_) => Err(KeyStoreError::Failure),
         }
     }
 
@@ -147,7 +166,7 @@ impl KeyStore for FileKeyStore {
         match std::fs::remove_file(self.path(key_ref)) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(_) => Err(KeyStoreError),
+            Err(_) => Err(KeyStoreError::Failure),
         }
     }
 }
@@ -215,5 +234,46 @@ mod tests {
         store.set("probe", "value").unwrap();
         assert!(dir.join("probe").exists());
         std::env::remove_var("UAW_KEYSTORE_DIR");
+    }
+
+    // Cross-process probes for the REAL OsKeyStore. Run as TWO separate `cargo test`
+    // invocations (see .github/workflows/keystore.yml): the set runs in one process,
+    // the get in another. A real OS keychain persists across processes; keyring's
+    // in-memory `mock` fallback does not, so a dropped backend feature fails here.
+    // #[ignore]d so a normal `cargo test` (machine without a keychain) skips them.
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    const PROBE_REF: &str = "uaw-keystore-ci-probe";
+
+    #[test]
+    #[ignore = "hits the real OS keychain; run via the keystore CI job or locally"]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    fn os_keystore_set_probe() {
+        let store = OsKeyStore::new();
+        store
+            .set(PROBE_REF, "probe-secret-v1")
+            .expect("set on the real OS keychain");
+        // Intentionally does NOT delete — os_keystore_get_delete_probe (a separate
+        // process) reads it to prove cross-process persistence.
+    }
+
+    #[test]
+    #[ignore = "hits the real OS keychain; run after os_keystore_set_probe in a SEPARATE process"]
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    fn os_keystore_get_delete_probe() {
+        let store = OsKeyStore::new();
+        // Cross-process persistence: the value set by os_keystore_set_probe in another
+        // process must be visible. A process-global `mock` backend returns None here.
+        assert_eq!(
+            store.get(PROBE_REF).expect("get on the real OS keychain"),
+            Some("probe-secret-v1".to_string()),
+            "key did not persist across processes — backend may be the in-memory mock"
+        );
+        // Overwrite (last-write-wins).
+        store.set(PROBE_REF, "probe-secret-v2").unwrap();
+        assert_eq!(store.get(PROBE_REF).unwrap(), Some("probe-secret-v2".to_string()));
+        // Delete, then missing -> None, then delete-missing -> Ok (idempotent contract).
+        store.delete(PROBE_REF).unwrap();
+        assert_eq!(store.get(PROBE_REF).unwrap(), None);
+        assert!(store.delete(PROBE_REF).is_ok());
     }
 }

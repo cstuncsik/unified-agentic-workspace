@@ -117,3 +117,14 @@ docs/           PRD, architecture, and implementation roadmap
 ```
 
 The SQLite database is created on first launch in the OS app-data directory (on macOS: `~/Library/Application Support/io.n8n.uaw/uaw.sqlite`). Schema changes are applied by the migration runner in `src-tauri/src/db`, tracked in the `schema_migrations` table.
+
+### Provider key storage (per OS)
+
+API keys are stored in the OS keychain — macOS Keychain, Windows Credential Manager,
+or, on **Linux**, the **Secret Service** (provided by GNOME Keyring or KWallet). A
+normal Linux desktop session has one; a headless/minimal/SSH session without a Secret
+Service provider (or with a locked login keyring) cannot store keys — adding an
+account will report "No OS keychain is available on this system." There is no plaintext
+fallback (by design). Note that on Linux/Windows, stored secrets are readable by any
+process in the user's unlocked session (no per-app ACL, unlike the macOS Keychain) —
+consistent with this app's single-user, local-first trust model.

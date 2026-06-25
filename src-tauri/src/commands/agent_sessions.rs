@@ -12,7 +12,7 @@ use crate::models::agent_session::{self, AgentSession};
 use crate::models::provider_account::{self, ProviderAccount};
 use crate::models::{coding_workspace, event};
 use crate::services::agent::{self, pty, sdk, AgentAdapter};
-use crate::services::keystore::{self, KeyStore};
+use crate::services::keystore::{self, KeyStore, KeyStoreError};
 use crate::util::new_id;
 
 /// A live agent process: an interactive PTY or a headless SDK sidecar.
@@ -112,7 +112,10 @@ pub fn list_account_models(
     let key = match keystore::resolve().get(&account.keychain_ref) {
         Ok(Some(k)) => k,
         Ok(None) => return Err("Stored key for this account is missing".into()),
-        Err(_) => return Err("Failed to load the account key".into()),
+        Err(KeyStoreError::NoBackend) => {
+            return Err("No OS keychain is available on this system.".into())
+        }
+        Err(KeyStoreError::Failure) => return Err("Failed to load the account key".into()),
     };
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/tmp"));
     let stdout = sdk::spawn_oneshot(
@@ -615,7 +618,10 @@ pub fn resolve_session_env(
     let key = match store.get(&account.keychain_ref) {
         Ok(Some(key)) => key,
         Ok(None) => return Err("Stored key for this account is missing".into()),
-        Err(_) => return Err("Failed to load the account key".into()),
+        Err(KeyStoreError::NoBackend) => {
+            return Err("No OS keychain is available on this system.".into())
+        }
+        Err(KeyStoreError::Failure) => return Err("Failed to load the account key".into()),
     };
     let mut env = vec![(api_key_env.to_string(), key)];
     for clear in &adapter.clear_env {
