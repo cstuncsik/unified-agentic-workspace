@@ -1,0 +1,29 @@
+sidecar/claude-agent-sdk/index.mjs
+  s_b49f7388e23022::t_e54054b9a70870 75-83
+  s_b49f7388e23022::t_be4a78285e623e 70-72
+scripts/run-e2e.sh
+  s_b49f7388e23022::t_d021a0d51ec1d0 101-106
+  s_b49f7388e23022::t_1b6212342cae85 71-73
+src-tauri/src/services/agent/sdk.rs
+  s_b49f7388e23022::t_668aacc71e7dc9 182-192
+.github/workflows/sdk-sidecar.yml
+  s_b49f7388e23022::t_33e3b74f7fd619 47-48
+  s_b49f7388e23022::t_151f6f8d5a7632 1-37,39-42,49-51,56,61-62
+  s_b49f7388e23022::t_88730a910e97b0 38,43-46,52-55,57-60,63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4ce1eedadd978e0bf379bd69b205e7bebcbe626b",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
