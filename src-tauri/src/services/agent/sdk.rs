@@ -173,7 +173,21 @@ pub struct SdkSpawned {
     pub handle: SdkHandle,
 }
 
-/// Spawn the sidecar as a piped child in `cwd`; goal as argv[2], mode as argv[3],
+/// The Node binary used to run the sidecar scripts. Resolved from the injected env
+/// first (so tests swap it per-call without mutating process-global state — keeping
+/// the env-mutating tests parallel-safe), then the backend's own env, defaulting to
+/// `node` on PATH (the documented prerequisite; a missing `node` yields the existing
+/// opaque spawn error).
+fn node_bin(env: &[(String, String)]) -> String {
+    env.iter()
+        .find(|(k, _)| k == "UAW_AGENT_NODE")
+        .map(|(_, v)| v.clone())
+        .or_else(|| std::env::var("UAW_AGENT_NODE").ok())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "node".to_string())
+}
+
+/// Spawn the sidecar via `node` as a piped child in `cwd`; goal as argv[2], mode as argv[3],
 /// model as argv[4] (empty = SDK default), env injected, stdin null, stderr discarded.
 pub fn spawn(
     program: &str,
@@ -183,8 +197,13 @@ pub fn spawn(
     cwd: &Path,
     env: &[(String, String)],
 ) -> Result<SdkSpawned, String> {
-    let mut cmd = Command::new(program);
-    cmd.arg(goal)
+    // Run the sidecar as `node <script> <goal> <mode> <model>`. Direct-exec of the
+    // .mjs (relying on the shebang) is dead on Windows and needs the exec bit on Unix;
+    // `node <script>` works on all three OSes. The script still sees goal/mode/model
+    // at argv[2..=4] (node is argv[0], the script argv[1]).
+    let mut cmd = Command::new(node_bin(env));
+    cmd.arg(program)
+        .arg(goal)
         .arg(mode)
         .arg(model)
         .current_dir(cwd)
@@ -232,8 +251,10 @@ pub fn spawn_oneshot(
     timeout: Duration,
 ) -> Result<String, String> {
     const ERR: &str = "Failed to list models";
-    let mut cmd = Command::new(program);
-    cmd.args(args)
+    // Same `node <script> <args…>` invocation as `spawn` (see node_bin).
+    let mut cmd = Command::new(node_bin(env));
+    cmd.arg(program)
+        .args(args)
         .current_dir(cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -358,13 +379,19 @@ mod tests {
     fn spawn_injects_env_overriding_inherited() {
         std::env::set_var("UAW_SDK_PROBE", "PARENT");
         let dir = std::env::temp_dir();
+        // Swap "node" for `printenv` via the injected env. The script slot becomes
+        // printenv's VAR arg (the var it echoes); goal/mode/model are empty (skipped).
+        // The injected UAW_SDK_PROBE=INJECTED must override the inherited PARENT.
         let mut sp = spawn(
-            "printenv",
-            "UAW_SDK_PROBE", // argv (the goal slot) = the var name printenv echoes
-            "plan",          // mode slot (printenv ignores the extra unset name)
+            "UAW_SDK_PROBE",
+            "",
+            "",
             "",
             &dir,
-            &[("UAW_SDK_PROBE".into(), "INJECTED".into())],
+            &[
+                ("UAW_AGENT_NODE".into(), "printenv".into()),
+                ("UAW_SDK_PROBE".into(), "INJECTED".into()),
+            ],
         )
         .expect("spawn printenv");
         let mut out = String::new();
@@ -377,8 +404,18 @@ mod tests {
     #[test]
     fn spawn_forwards_mode_as_second_arg() {
         let dir = std::env::temp_dir();
-        // `echo` joins its argv with spaces, so the goal + mode + model round-trip on stdout.
-        let mut sp = spawn("echo", "GOAL", "edit", "m1", &dir, &[]).expect("spawn echo");
+        // Swap "node" for echo; empty script slot → echo receives "" GOAL edit m1 →
+        // " GOAL edit m1", and trim() yields "GOAL edit m1" — proving goal/mode/model
+        // arrive in order after the script arg.
+        let mut sp = spawn(
+            "",
+            "GOAL",
+            "edit",
+            "m1",
+            &dir,
+            &[("UAW_AGENT_NODE".into(), "echo".into())],
+        )
+        .expect("spawn echo");
         let mut out = String::new();
         BufReader::new(&mut sp.stdout).read_to_string(&mut out).unwrap();
         sp.child.wait().unwrap();
@@ -386,8 +423,16 @@ mod tests {
     }
 
     #[test]
-    fn spawn_missing_program_is_opaque() {
-        let err = match spawn("/no/such/sidecar-xyz", "goal", "plan", "", &std::env::temp_dir(), &[]) {
+    fn spawn_missing_node_is_opaque() {
+        // A missing `node` (not a missing script) is now the spawn-failure path.
+        let err = match spawn(
+            "goal",
+            "plan",
+            "",
+            "",
+            &std::env::temp_dir(),
+            &[("UAW_AGENT_NODE".into(), "/no/such/node-xyz".into())],
+        ) {
             Err(e) => e,
             Ok(_) => panic!("expected spawn to fail"),
         };
@@ -396,16 +441,41 @@ mod tests {
 
     #[test]
     fn spawn_oneshot_captures_stdout() {
-        let out = spawn_oneshot("echo", &["hello"], &std::env::temp_dir(), &[], std::time::Duration::from_secs(5)).unwrap();
+        // `echo "" hello` → " hello" → trimmed "hello".
+        let out = spawn_oneshot(
+            "",
+            &["hello"],
+            &std::env::temp_dir(),
+            &[("UAW_AGENT_NODE".into(), "echo".into())],
+            std::time::Duration::from_secs(5),
+        )
+        .unwrap();
         assert_eq!(out.trim(), "hello");
     }
+
     #[test]
     fn spawn_oneshot_nonzero_exit_is_err() {
-        assert!(spawn_oneshot("false", &[], &std::env::temp_dir(), &[], std::time::Duration::from_secs(5)).is_err());
+        // `false` ignores its args and exits non-zero.
+        assert!(spawn_oneshot(
+            "",
+            &[],
+            &std::env::temp_dir(),
+            &[("UAW_AGENT_NODE".into(), "false".into())],
+            std::time::Duration::from_secs(5),
+        )
+        .is_err());
     }
+
     #[test]
     fn spawn_oneshot_times_out() {
-        let r = spawn_oneshot("sleep", &["10"], &std::env::temp_dir(), &[], std::time::Duration::from_millis(50));
+        // `sleep 10` (script slot = "10") outlasts the 50 ms timeout → killed → Err.
+        let r = spawn_oneshot(
+            "10",
+            &[],
+            &std::env::temp_dir(),
+            &[("UAW_AGENT_NODE".into(), "sleep".into())],
+            std::time::Duration::from_millis(50),
+        );
         assert!(r.is_err());
     }
 
