@@ -1,0 +1,24 @@
+src-tauri/src/services/agent/sdk.rs
+  s_b49f7388e23022::t_0a732445ca17e0 176-190
+  s_b49f7388e23022::t_288656830ceea7 254-257
+  s_b49f7388e23022::t_bd66763226e5fc 407-409
+  s_b49f7388e23022::t_7310b7a31cf86c 203
+  s_b49f7388e23022::t_f4b138cbaf4686 200-202,204-206
+  s_b49f7388e23022::t_f8b4534dbd802d 382-384,386-388,391-394,410-418,426-435,444-452,455,458-466,468,471-478
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.1",
+  "base_commit_sha": "450bdb142a987b071d87b5232eac01d232de7db8",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
