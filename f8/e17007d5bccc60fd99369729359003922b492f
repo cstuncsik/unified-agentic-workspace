@@ -1,0 +1,24 @@
+sidecar/claude-agent-sdk/index.mjs
+  s_b49f7388e23022::t_697a8e87680c89 69-73,75
+  s_b49f7388e23022::t_56a937762a7b36 22-25
+  s_b49f7388e23022::t_b64c6982d79d6e 77
+  s_b49f7388e23022::t_d5bd5ca487c840 74
+docs/superpowers/specs/2026-06-20-agent-sdk-edit-mode-design.md
+  s_b49f7388e23022::t_8a502c901c9623 7-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.1",
+  "base_commit_sha": "f8e17007d5bccc60fd99369729359003922b492f",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
