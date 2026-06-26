@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Dependency-free model-list helper for the SDK model picker. Key via env (injected
 // by the backend, never argv). On success prints the Anthropic /v1/models JSON to
 // stdout; on ANY failure prints nothing to stdout or stderr and exits 1 — the backend

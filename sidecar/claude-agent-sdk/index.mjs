@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Headless Claude Agent SDK runner. Goal via argv[2], mode via argv[3]
 // ("plan" | "edit"); key via env (injected by the backend). Emits one compact
 // NDJSON object per message on stdout.
@@ -68,13 +67,20 @@ const options = {
   cwd,
   // bypassPermissions: skip the interactive permission prompt (meaningless headless).
   // The locked-down surface is the allowlist + this denylist (shell/egress/subagents)
-  // + the edit-mode worktree hook — NOT the mode name. "dontAsk" is INVALID in SDK
-  // 0.1.0 (modes: default | acceptEdits | bypassPermissions | plan) and was rejected
-  // at arg-parse, so the real agent never ran.
-  // ("Task" is the subagent-spawn tool's CLI name; its SDK type is AgentInput.)
+  // + the edit-mode worktree hook — NOT the mode name. (Valid 0.1.0 modes: default |
+  // acceptEdits | bypassPermissions | plan; "dontAsk" was invalid. "Task" is the
+  // subagent-spawn tool's CLI name; SDK type AgentInput.)
   permissionMode: "bypassPermissions",
   allowedTools,
-  disallowedTools: ["Bash", "BashOutput", "KillShell", "NotebookEdit", "WebFetch", "WebSearch", "Task"],
+  disallowedTools: [
+    "Bash",
+    "BashOutput",
+    "KillShell",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+  ],
   settingSources: [],
   maxTurns: 30,
   // Spread our env so the grandchild CLI inherits the injected key, and blank

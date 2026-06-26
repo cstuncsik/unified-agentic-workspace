@@ -68,7 +68,9 @@ chmod +x /tmp/uaw-fake-agent
 # $ANTHROPIC_API_KEY echo (to prove the backend redacts it), a non-JSON garbage line
 # (to prove no-crash), a KEY:set/unset marker, then a result. In edit mode, writes an
 # untracked file into the worktree (cwd) to simulate a real agent edit. No shebang /
-# exec bit needed — node runs it as a file argument.
+# exec bit needed — node runs it as a file argument. (The backend invokes it with its
+# default `node`: UAW_AGENT_NODE is intentionally unset in wdio.conf.ts, so node_bin
+# falls back to `node` on PATH — the same path production uses.)
 cat >/tmp/uaw-fake-sdk <<'SDK'
 const goal = process.argv[2] ?? "";
 const mode = process.argv[3] === "edit" ? "edit" : "plan";
@@ -95,6 +97,12 @@ process.stdout.write(JSON.stringify({ data: [
   { id: "claude-sonnet-4-5", display_name: "Claude Sonnet 4.5" },
 ] }) + "\n");
 MODELS
+
+# Fail fast on a syntax error in the REAL sidecar scripts. The e2e runs the FAKE
+# sidecars above, so this cheap `node --check` is the only place the real ones get
+# exercised in the Docker run (the sdk-sidecar.yml CI job adds the option-parse smoke).
+node --check sidecar/claude-agent-sdk/index.mjs
+node --check sidecar/claude-agent-sdk/list-models.mjs
 
 # Invoke the wdio binary directly (skips pnpm's pre-run deps check). Not exec'd
 # so the EXIT trap still runs to stop Xvfb; set -e propagates wdio's exit code.

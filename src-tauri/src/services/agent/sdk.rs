@@ -179,12 +179,17 @@ pub struct SdkSpawned {
 /// `node` on PATH (the documented prerequisite; a missing `node` yields the existing
 /// opaque spawn error).
 fn node_bin(env: &[(String, String)]) -> String {
-    env.iter()
-        .find(|(k, _)| k == "UAW_AGENT_NODE")
-        .map(|(_, v)| v.clone())
-        .or_else(|| std::env::var("UAW_AGENT_NODE").ok())
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| "node".to_string())
+    // Injected env first (test-swappable, parallel-safe), then process env, else `node`.
+    // Mirror the `resolve_sidecar_script` idiom: a blank/whitespace override falls through.
+    if let Some((_, v)) = env.iter().find(|(k, _)| k == "UAW_AGENT_NODE") {
+        if !v.trim().is_empty() {
+            return v.clone();
+        }
+    }
+    match std::env::var("UAW_AGENT_NODE") {
+        Ok(v) if !v.trim().is_empty() => v,
+        _ => "node".to_string(),
+    }
 }
 
 /// Spawn the sidecar via `node` as a piped child in `cwd`; goal as argv[2], mode as argv[3],

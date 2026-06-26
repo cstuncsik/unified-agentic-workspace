@@ -1,0 +1,63 @@
+name: sdk-sidecar
+
+on:
+  pull_request:
+    paths:
+      - "sidecar/claude-agent-sdk/**"
+      - ".github/workflows/sdk-sidecar.yml"
+  push:
+    branches: [main]
+
+concurrency:
+  group: sdk-sidecar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  options-smoke:
+    # The Docker e2e exercises a FAKE sidecar that never imports the SDK. This job runs
+    # the REAL index.mjs against the pinned SDK with a DUMMY key to prove (key-free) that
+    # its options parse — i.e. permissionMode + disallowedTools are accepted (the bug
+    # that shipped the invalid "dontAsk" mode would fail here at arg-parse) and the script
+    # reaches the API auth boundary. It does NOT prove runtime deny-by-default (that needs
+    # a real key — a manual product-owner check). No real secret is used.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install the pinned SDK (no lifecycle scripts, no native optionals)
+        working-directory: sidecar/claude-agent-sdk
+        run: npm install --ignore-scripts --omit=optional
+      - name: Syntax-check the sidecar scripts
+        working-directory: sidecar/claude-agent-sdk
+        run: |
+          node --check index.mjs
+          node --check list-models.mjs
+      - name: Option-parse smoke (mode + denylist accepted; sidecar runs)
+        working-directory: sidecar/claude-agent-sdk
+        env:
+          ANTHROPIC_API_KEY: sk-ant-dummy-00000000
+        run: |
+          # Isolate the CLI's config dir (production sets CLAUDE_CONFIG_DIR too) so the
+          # run can't pick up an ambient `claude login` credential — with only the dummy
+          # key, auth then fails deterministically, which is fine: we assert the options
+          # PARSE and the sidecar RUNS, not that auth succeeds.
+          CLAUDE_CONFIG_DIR="$(mktemp -d)"
+          export CLAUDE_CONFIG_DIR
+          for mode in plan edit; do
+            echo "--- mode: $mode ---"
+            out=$(timeout 60 node index.mjs "ping" "$mode" 2>&1 || true)
+            echo "$out" | head -5
+            # The dontAsk-class regression manifests as an arg-parse rejection of options.
+            if echo "$out" | grep -Eqi "is invalid|permission-mode|unknown option|disallowedTools|not a valid"; then
+              echo "FAIL: sidecar options were rejected at parse time"; exit 1
+            fi
+            # A terminal NDJSON event proves the sidecar loaded the SDK and ran the query
+            # loop (whether auth then succeeds or fails is not asserted).
+            if ! echo "$out" | grep -Eq '"type":"(result|error)"'; then
+              echo "FAIL: no terminal SDK event — the sidecar did not run"; exit 1
+            fi
+          done
+          echo "OK: options parsed on plan + edit; sidecar reached a terminal event"
