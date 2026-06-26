@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-26-sdk-sidecar-cross-platform-correctness.md
+  s_b49f7388e23022::t_ff79cc2f8b838c 1-429
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.1",
+  "base_commit_sha": "b16ea73d427710ab8bd30b01ea993c1ae6238e28",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
