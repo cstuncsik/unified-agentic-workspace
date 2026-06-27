@@ -52,25 +52,32 @@ fn full_capabilities() -> AgentCapabilities {
 /// The built-in interactive CLI adapters.
 pub fn adapters() -> Vec<AgentAdapter> {
     vec![
+        // Ambient-login PTY agent. NO provider/api_key_env/clear_env: interactive `claude`
+        // ignores an injected ANTHROPIC_API_KEY (cli.js's customApiKeyResponses approval
+        // gate) and runs as the user's own `claude login`. Injecting a per-account key was
+        // misleading and spilled a live key into a process that ignores it. Per-account
+        // binding lives on the SDK adapter (`claude-agent-sdk`).
         AgentAdapter {
             id: "claude-code",
             name: "Claude Code",
             program: "claude",
             args: vec![],
-            provider: Some("anthropic"),
-            api_key_env: Some("ANTHROPIC_API_KEY"),
-            clear_env: vec!["ANTHROPIC_AUTH_TOKEN"],
+            provider: None,
+            api_key_env: None,
+            clear_env: vec![],
             kind: "pty",
             requires_account: false,
             capabilities: full_capabilities(),
         },
+        // Ambient-login PTY agent (see claude-code). Interactive `codex` ignores an
+        // injected OPENAI_API_KEY and uses its stored login (auth_mode: chatgpt).
         AgentAdapter {
             id: "codex",
             name: "Codex",
             program: "codex",
             args: vec![],
-            provider: Some("openai"),
-            api_key_env: Some("OPENAI_API_KEY"),
+            provider: None,
+            api_key_env: None,
             clear_env: vec![],
             kind: "pty",
             requires_account: false,
@@ -155,24 +162,28 @@ mod tests {
         assert!(find_adapter("claude-code").is_some());
         assert!(find_adapter("nope").is_none());
 
+        // PTY agents are ambient-login: no provider/api_key_env/clear_env (uniform with
+        // gemini). Interactive claude/codex ignore an injected key and use the user's login.
         let claude = find_adapter("claude-code").unwrap();
-        assert_eq!(claude.provider, Some("anthropic"));
-        assert_eq!(claude.api_key_env, Some("ANTHROPIC_API_KEY"));
-        assert_eq!(claude.clear_env, vec!["ANTHROPIC_AUTH_TOKEN"]);
+        assert_eq!(claude.provider, None);
+        assert_eq!(claude.api_key_env, None);
+        assert!(claude.clear_env.is_empty());
 
         let codex = find_adapter("codex").unwrap();
-        assert_eq!(codex.provider, Some("openai"));
-        assert_eq!(codex.api_key_env, Some("OPENAI_API_KEY"));
+        assert_eq!(codex.provider, None);
+        assert_eq!(codex.api_key_env, None);
+        assert!(codex.clear_env.is_empty());
 
-        // Gemini has no creatable account in this slice -> no key binding.
         let gemini = find_adapter("gemini").unwrap();
         assert_eq!(gemini.provider, None);
         assert_eq!(gemini.api_key_env, None);
 
+        // The SDK adapter is the lone account-bearing adapter (the per-account path).
         let sdk = find_adapter("claude-agent-sdk").unwrap();
         assert_eq!(sdk.kind, "sdk");
         assert!(sdk.requires_account);
         assert_eq!(sdk.provider, Some("anthropic"));
+        assert_eq!(sdk.api_key_env, Some("ANTHROPIC_API_KEY"));
         assert_eq!(claude.kind, "pty");
         assert!(!claude.requires_account);
     }
