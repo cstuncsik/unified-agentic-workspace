@@ -1,0 +1,23 @@
+src-tauri/src/services/keystore/mod.rs
+  s_b49f7388e23022::t_644ba918257132 26-27
+README.md
+  s_b49f7388e23022::t_47358d91372c10 121-124
+e2e/specs/agent-account.e2e.ts
+  s_b49f7388e23022::t_2fa3a77d23e8a1 20-23,25,72,76,78-79,81,84,87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "bfcb793f0c89fce9895654d43ce4c790195fbeb0",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
