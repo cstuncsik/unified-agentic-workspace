@@ -73,9 +73,9 @@ describe("PTY agents are ambient-login (no per-account binding)", () => {
     await (await $("button*=Agents")).click();
     await (await $('[aria-label="Agent worktree"]')).selectByVisibleText("feat/acct");
     await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Code");
-    expect(await $('[aria-label="Provider account"]').isExisting()).toBe(false);
+    await $('[aria-label="Provider account"]').waitForExist({ reverse: true, timeout: 5_000 });
     await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Codex");
-    expect(await $('[aria-label="Provider account"]').isExisting()).toBe(false);
+    await $('[aria-label="Provider account"]').waitForExist({ reverse: true, timeout: 5_000 });
   });
 
   it("a PTY agent launches with the ambient login (no key injected -> KEY:unset)", async () => {

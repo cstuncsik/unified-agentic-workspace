@@ -687,9 +687,9 @@ mod account_env_tests {
 
     #[test]
     fn no_account_yields_empty_env() {
-        let claude = find_adapter("claude-code").unwrap();
+        let sdk = find_adapter("claude-agent-sdk").unwrap();
         let store = temp_store();
-        assert!(resolve_session_env(&claude, None, &store).unwrap().is_empty());
+        assert!(resolve_session_env(&sdk, None, &store).unwrap().is_empty());
     }
 
     #[test]
