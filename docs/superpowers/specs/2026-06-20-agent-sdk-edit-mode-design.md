@@ -4,6 +4,15 @@
 **Branch:** `cstuncsik/milestone-10b-2b-slice2`
 **Builds on:** slice 1 (`2026-06-19-agent-sdk-sidecar-design.md`, plan-only SDK sidecar, shipped in PR #14)
 
+> **Correction (2026-06-26):** The `permissionMode: "dontAsk"` described throughout
+> this doc is **invalid in the pinned SDK `0.1.0`** (its modes are `default |
+> acceptEdits | bypassPermissions | plan`) — every real run was rejected at arg-parse,
+> so the SDK agent never actually ran (the e2e uses a fake sidecar). The sidecar now
+> uses `permissionMode: "bypassPermissions"` + the `allowedTools` allowlist + a
+> `disallowedTools` denylist (shell/egress/subagents) + the edit-mode worktree hook.
+> See `2026-06-26-sdk-sidecar-cross-platform-correctness-design.md`. The rest of this
+> doc is kept as the original design record.
+
 ## Goal
 
 Let the headless Claude Agent SDK agent **apply file edits** to its worktree (not

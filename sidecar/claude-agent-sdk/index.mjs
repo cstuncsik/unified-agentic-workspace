@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Headless Claude Agent SDK runner. Goal via argv[2], mode via argv[3]
 // ("plan" | "edit"); key via env (injected by the backend). Emits one compact
 // NDJSON object per message on stdout.
@@ -19,9 +18,10 @@ try {
 }
 const emit = (o) => process.stdout.write(JSON.stringify(o) + "\n");
 
-// Explicit tool surface: dontAsk + an allowlist denies everything not listed (no
-// shell, no egress, no subagents) — the SDK's documented locked-down pattern. Edit
-// mode adds Write/Edit; plan mode is read-only.
+// Explicit tool surface: an allowlist (allowedTools) plus a denylist of shell/egress/
+// subagent tools (disallowedTools), run under bypassPermissions — no interactive
+// prompts, nothing dangerous runs. Edit mode adds Write/Edit (bounded to the worktree
+// by the PreToolUse hook below); plan mode is read-only.
 const allowedTools =
   mode === "edit" ? ["Read", "Glob", "Grep", "Edit", "Write"] : ["Read", "Glob", "Grep"];
 
@@ -65,8 +65,22 @@ const boundToWorktree = async (input) => {
 
 const options = {
   cwd,
-  permissionMode: "dontAsk",
+  // bypassPermissions: skip the interactive permission prompt (meaningless headless).
+  // The locked-down surface is the allowlist + this denylist (shell/egress/subagents)
+  // + the edit-mode worktree hook — NOT the mode name. (Valid 0.1.0 modes: default |
+  // acceptEdits | bypassPermissions | plan; "dontAsk" was invalid. "Task" is the
+  // subagent-spawn tool's CLI name; SDK type AgentInput.)
+  permissionMode: "bypassPermissions",
   allowedTools,
+  disallowedTools: [
+    "Bash",
+    "BashOutput",
+    "KillShell",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+    "Task",
+  ],
   settingSources: [],
   maxTurns: 30,
   // Spread our env so the grandchild CLI inherits the injected key, and blank

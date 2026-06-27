@@ -62,41 +62,47 @@ exec cat
 AGENT
 chmod +x /tmp/uaw-fake-agent
 
-# A fake Claude Agent SDK sidecar for the SDK e2e: goal via argv ($1), mode via
-# argv ($2, default "plan"), emits canned NDJSON incl. a deliberate
-# $ANTHROPIC_API_KEY echo (to prove the backend redacts it), a non-JSON garbage
-# line (to prove no-crash), a KEY:set/unset presence marker, then a result.
-# In edit mode, writes an untracked file into the worktree (cwd) to simulate a
-# real agent edit. Exits 0 (NOT exec cat — it is a one-shot, not a REPL).
+# A fake Claude Agent SDK sidecar for the SDK e2e, run via `node` (the backend now
+# invokes the sidecar as `node <script> <goal> <mode> <model>`). goal=argv[2],
+# mode=argv[3] (default "plan"), model=argv[4]. Emits canned NDJSON incl. a deliberate
+# $ANTHROPIC_API_KEY echo (to prove the backend redacts it), a non-JSON garbage line
+# (to prove no-crash), a KEY:set/unset marker, then a result. In edit mode, writes an
+# untracked file into the worktree (cwd) to simulate a real agent edit. No shebang /
+# exec bit needed — node runs it as a file argument. (The backend invokes it with its
+# default `node`: UAW_AGENT_NODE is intentionally unset in wdio.conf.ts, so node_bin
+# falls back to `node` on PATH — the same path production uses.)
 cat >/tmp/uaw-fake-sdk <<'SDK'
-#!/usr/bin/env bash
-goal="$1"
-mode="${2:-plan}"
-model="${3:-}"
-km=KEY:unset; [ -n "${ANTHROPIC_API_KEY:-}" ] && km=KEY:set
-# In edit mode, simulate an agent edit by writing an untracked file into the
-# worktree (cwd is the worktree: the backend sets current_dir). Relative path only,
-# never escaping the worktree. Plan mode leaves the tree clean.
-if [ "$mode" = "edit" ]; then
-  printf 'edited by fake sdk\n' > AGENT_EDIT.md
-fi
-printf '{"type":"assistant","text":"Planning: %s"}\n' "${goal//\"/}"
-printf '{"type":"tool","name":"Read","summary":"README.md"}\n'
-printf '{"type":"tool","name":"echo","summary":"%s"}\n' "${ANTHROPIC_API_KEY:-none}"
-printf 'this line is not json\n'
-printf '{"type":"tool","name":"probe","summary":"%s"}\n' "$km"
-printf '{"type":"tool","name":"model-probe","summary":"MODEL:%s"}\n' "$model"
-printf '{"type":"result","status":"success","summary":"Done"}\n'
+const goal = process.argv[2] ?? "";
+const mode = process.argv[3] === "edit" ? "edit" : "plan";
+const model = process.argv[4] ?? "";
+const key = process.env.ANTHROPIC_API_KEY ?? "";
+const km = key ? "KEY:set" : "KEY:unset";
+// cwd is the worktree (the backend sets current_dir); relative path never escapes it.
+if (mode === "edit") require("fs").writeFileSync("AGENT_EDIT.md", "edited by fake sdk\n");
+const w = (o) => process.stdout.write(JSON.stringify(o) + "\n");
+w({ type: "assistant", text: "Planning: " + goal.replace(/"/g, "") });
+w({ type: "tool", name: "Read", summary: "README.md" });
+w({ type: "tool", name: "echo", summary: key || "none" });
+process.stdout.write("this line is not json\n");
+w({ type: "tool", name: "probe", summary: km });
+w({ type: "tool", name: "model-probe", summary: "MODEL:" + model });
+w({ type: "result", status: "success", summary: "Done" });
 SDK
-chmod +x /tmp/uaw-fake-sdk
 
-# Fake model-list helper for the SDK model-picker e2e: emits canned /v1/models JSON
-# (the shape parse_models accepts) and nothing else. No network, no auth needed.
+# Fake model-list helper, run via `node`: emits canned /v1/models JSON (the shape
+# parse_models accepts) and nothing else. No network, no auth, no shebang/exec bit.
 cat >/tmp/uaw-fake-list-models <<'MODELS'
-#!/usr/bin/env bash
-printf '{"data":[{"id":"claude-opus-4-5","display_name":"Claude Opus 4.5"},{"id":"claude-sonnet-4-5","display_name":"Claude Sonnet 4.5"}]}\n'
+process.stdout.write(JSON.stringify({ data: [
+  { id: "claude-opus-4-5", display_name: "Claude Opus 4.5" },
+  { id: "claude-sonnet-4-5", display_name: "Claude Sonnet 4.5" },
+] }) + "\n");
 MODELS
-chmod +x /tmp/uaw-fake-list-models
+
+# Fail fast on a syntax error in the REAL sidecar scripts. The e2e runs the FAKE
+# sidecars above, so this cheap `node --check` is the only place the real ones get
+# exercised in the Docker run (the sdk-sidecar.yml CI job adds the option-parse smoke).
+node --check sidecar/claude-agent-sdk/index.mjs
+node --check sidecar/claude-agent-sdk/list-models.mjs
 
 # Invoke the wdio binary directly (skips pnpm's pre-run deps check). Not exec'd
 # so the EXIT trap still runs to stop Xvfb; set -e propagates wdio's exit code.
