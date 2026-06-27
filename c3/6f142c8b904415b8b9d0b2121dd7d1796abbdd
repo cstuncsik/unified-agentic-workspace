@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-06-27-sdk-credential-isolation-design.md
+  s_b49f7388e23022::t_cdd6fd468378cc 1-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c36f142c8b904415b8b9d0b2121dd7d1796abbdd",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
