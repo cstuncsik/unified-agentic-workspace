@@ -373,6 +373,18 @@ pub fn start_agent_session(
     Ok(session)
 }
 
+/// Route the agent's credential-home env at an app-private dir so the grandchild Claude
+/// Code CLI cannot reach the user's ambient login (macOS Keychain at $HOME/Library/
+/// Keychains, ~/.claude/.credentials.json, %APPDATA% on Windows). CLAUDE_CONFIG_DIR alone
+/// does NOT sever the Keychain — HOME does. Each OS reads only the vars it uses; the rest
+/// are inert. Appended last so they override any inherited value at spawn time.
+fn with_isolated_home(mut env: Vec<(String, String)>, home_dir: &str) -> Vec<(String, String)> {
+    for k in ["HOME", "USERPROFILE", "CLAUDE_CONFIG_DIR", "APPDATA", "LOCALAPPDATA"] {
+        env.push((k.to_string(), home_dir.to_string()));
+    }
+    env
+}
+
 /// Headless Claude Agent SDK run: spawn the Node sidecar as a piped child, stream
 /// its redacted NDJSON to the transcript + `agent-sdk-event`, derive status from
 /// the terminal `result` event.
@@ -747,6 +759,28 @@ mod account_env_tests {
         assert!(load_session_account(&conn, Some(&acct.id), &ws_b).is_err());
         // Nonexistent id -> rejected.
         assert!(load_session_account(&conn, Some("nope"), &ws_a).is_err());
+    }
+
+    #[test]
+    fn isolated_home_points_credential_vars_at_the_dir_and_keeps_the_key() {
+        let base = vec![
+            ("ANTHROPIC_API_KEY".to_string(), "sk-secret".to_string()),
+            ("ANTHROPIC_AUTH_TOKEN".to_string(), String::new()),
+        ];
+        let out = with_isolated_home(base, "/tmp/uaw-xyz.home");
+        for k in ["HOME", "USERPROFILE", "CLAUDE_CONFIG_DIR", "APPDATA", "LOCALAPPDATA"] {
+            assert!(
+                out.iter().any(|(kk, v)| kk == k && v == "/tmp/uaw-xyz.home"),
+                "missing isolated var {k}"
+            );
+        }
+        assert_eq!(
+            out.iter()
+                .filter(|(_, v)| v == "sk-secret")
+                .map(|(k, _)| k.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ANTHROPIC_API_KEY"],
+        );
     }
 
     #[test]
