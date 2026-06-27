@@ -373,6 +373,34 @@ pub fn start_agent_session(
     Ok(session)
 }
 
+/// Create the per-session isolated HOME, fail-closed: error if the path already exists or
+/// is a symlink — a stale or planted credentials.json in a reused dir could re-leak the
+/// ambient login. The session uuid makes the path unguessable; 0700 keeps another local
+/// user from reading the CLI-written credential. Errors map to the existing opaque string.
+fn create_isolated_home(path: &Path) -> Result<(), String> {
+    // create_dir (NOT create_dir_all) fails if the path exists or is a symlink.
+    std::fs::create_dir(path).map_err(|_| "Failed to start the agent sidecar".to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
+            .map_err(|_| "Failed to start the agent sidecar".to_string())?;
+    }
+    Ok(())
+}
+
+/// Route the agent's credential-home env at an app-private dir so the grandchild Claude
+/// Code CLI cannot reach the user's ambient login (macOS Keychain at $HOME/Library/
+/// Keychains, ~/.claude/.credentials.json, %APPDATA% on Windows). CLAUDE_CONFIG_DIR alone
+/// does NOT sever the Keychain — HOME does. Each OS reads only the vars it uses; the rest
+/// are inert. Appended last so they override any inherited value at spawn time.
+fn with_isolated_home(mut env: Vec<(String, String)>, home_dir: &str) -> Vec<(String, String)> {
+    for k in ["HOME", "USERPROFILE", "CLAUDE_CONFIG_DIR", "APPDATA", "LOCALAPPDATA"] {
+        env.push((k.to_string(), home_dir.to_string()));
+    }
+    env
+}
+
 /// Headless Claude Agent SDK run: spawn the Node sidecar as a piped child, stream
 /// its redacted NDJSON to the transcript + `agent-sdk-event`, derive status from
 /// the terminal `result` event.
@@ -399,15 +427,14 @@ fn start_sdk_session(
         .api_key_env
         .and_then(|name| env.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))
         .unwrap_or_default();
-    // Isolate the SDK's own on-disk config/session files away from ~/.claude.
-    let mut sdk_env = env.clone();
-    sdk_env.push((
-        "CLAUDE_CONFIG_DIR".to_string(),
-        transcript_path
-            .with_extension("cfg")
-            .to_string_lossy()
-            .to_string(),
-    ));
+    // Isolate the SDK agent's credential resolution: a fresh, app-private HOME so the
+    // grandchild Claude Code CLI cannot fall back to the user's ambient `claude login`
+    // (macOS Keychain / ~/.claude) when the injected key is bad. CLAUDE_CONFIG_DIR alone
+    // does NOT sever the Keychain; HOME does. The sidecar's `...process.env` spread carries
+    // these to the grandchild; `settingSources: []` already blocks the settings paths.
+    let isolated_home = transcript_path.with_extension("home");
+    create_isolated_home(&isolated_home)?;
+    let sdk_env = with_isolated_home(env.clone(), &isolated_home.to_string_lossy());
 
     let sdk::SdkSpawned {
         stdout,
@@ -747,6 +774,47 @@ mod account_env_tests {
         assert!(load_session_account(&conn, Some(&acct.id), &ws_b).is_err());
         // Nonexistent id -> rejected.
         assert!(load_session_account(&conn, Some("nope"), &ws_a).is_err());
+    }
+
+    #[test]
+    fn create_isolated_home_is_fresh_0700_and_fails_on_reuse() {
+        let mut p = std::env::temp_dir();
+        p.push(format!("uaw-home-{}.home", new_id()));
+
+        create_isolated_home(&p).expect("fresh dir created");
+        assert!(p.is_dir());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o700, "isolated home must be 0700");
+        }
+
+        assert!(create_isolated_home(&p).is_err());
+
+        let _ = std::fs::remove_dir_all(&p);
+    }
+
+    #[test]
+    fn isolated_home_points_credential_vars_at_the_dir_and_keeps_the_key() {
+        let base = vec![
+            ("ANTHROPIC_API_KEY".to_string(), "sk-secret".to_string()),
+            ("ANTHROPIC_AUTH_TOKEN".to_string(), String::new()),
+        ];
+        let out = with_isolated_home(base, "/tmp/uaw-xyz.home");
+        for k in ["HOME", "USERPROFILE", "CLAUDE_CONFIG_DIR", "APPDATA", "LOCALAPPDATA"] {
+            assert!(
+                out.iter().any(|(kk, v)| kk == k && v == "/tmp/uaw-xyz.home"),
+                "missing isolated var {k}"
+            );
+        }
+        assert_eq!(
+            out.iter()
+                .filter(|(_, v)| v == "sk-secret")
+                .map(|(k, _)| k.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ANTHROPIC_API_KEY"],
+        );
     }
 
     #[test]
