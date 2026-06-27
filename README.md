@@ -118,6 +118,10 @@ docs/           PRD, architecture, and implementation roadmap
 
 The SQLite database is created on first launch in the OS app-data directory (on macOS: `~/Library/Application Support/io.n8n.uaw/uaw.sqlite`). Schema changes are applied by the migration runner in `src-tauri/src/db`, tracked in the `schema_migrations` table.
 
+### Provider accounts and agents
+
+Provider accounts apply to the **SDK agent** only. The PTY agents (Claude Code, Codex, Gemini) authenticate with your own CLI login (`claude` / `codex` / `gemini`).
+
 ### Provider key storage (per OS)
 
 API keys are stored in the OS keychain — macOS Keychain, Windows Credential Manager,

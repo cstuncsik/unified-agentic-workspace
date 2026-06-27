@@ -23,8 +23,8 @@ pub enum KeyStoreError {
 
 pub trait KeyStore: Send + Sync {
     fn set(&self, key_ref: &str, secret: &str) -> Result<(), KeyStoreError>;
-    // Consumed by `resolve_session_env` (M10b-2a) to inject a session's account key
-    // into the agent PTY env.
+    // Consumed by `resolve_session_env` to inject the SDK agent's account key
+    // (PTY agents are ambient-login — they use the user's own CLI login).
     fn get(&self, key_ref: &str) -> Result<Option<String>, KeyStoreError>;
     fn delete(&self, key_ref: &str) -> Result<(), KeyStoreError>;
 }
