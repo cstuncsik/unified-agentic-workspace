@@ -687,9 +687,9 @@ mod account_env_tests {
 
     #[test]
     fn no_account_yields_empty_env() {
-        let claude = find_adapter("claude-code").unwrap();
+        let sdk = find_adapter("claude-agent-sdk").unwrap();
         let store = temp_store();
-        assert!(resolve_session_env(&claude, None, &store).unwrap().is_empty());
+        assert!(resolve_session_env(&sdk, None, &store).unwrap().is_empty());
     }
 
     #[test]
@@ -700,10 +700,10 @@ mod account_env_tests {
         let store = temp_store();
         store.set(&acct.keychain_ref, SENTINEL).unwrap();
 
-        let claude = find_adapter("claude-code").unwrap();
-        let env = resolve_session_env(&claude, Some(&acct), &store).unwrap();
+        let sdk = find_adapter("claude-agent-sdk").unwrap();
+        let env = resolve_session_env(&sdk, Some(&acct), &store).unwrap();
 
-        // Key present EXACTLY once, only as the value of api_key_env — never as a
+        // Key present EXACTLY once, only as the value of ANTHROPIC_API_KEY — never as a
         // key, never in any other entry (e.g. a clear_env slot).
         assert_eq!(
             env.iter()
@@ -713,10 +713,9 @@ mod account_env_tests {
             vec!["ANTHROPIC_API_KEY"],
         );
         assert!(env.iter().all(|(k, _)| k != SENTINEL));
-        // Higher-precedence ambient var blanked.
-        assert!(env
-            .iter()
-            .any(|(k, v)| k == "ANTHROPIC_AUTH_TOKEN" && v.is_empty()));
+        // The SDK adapter blanks BOTH ambient OAuth tokens.
+        assert!(env.iter().any(|(k, v)| k == "ANTHROPIC_AUTH_TOKEN" && v.is_empty()));
+        assert!(env.iter().any(|(k, v)| k == "CLAUDE_CODE_OAUTH_TOKEN" && v.is_empty()));
     }
 
     #[test]
@@ -727,24 +726,28 @@ mod account_env_tests {
         let store = temp_store();
         store.set(&openai_acct.keychain_ref, SENTINEL).unwrap();
 
-        let claude = find_adapter("claude-code").unwrap();
+        let claude = find_adapter("claude-agent-sdk").unwrap();
         let err = resolve_session_env(&claude, Some(&openai_acct), &store).unwrap_err();
         assert_eq!(err, "Selected account does not match this agent's provider");
         assert!(!err.contains(SENTINEL));
     }
 
     #[test]
-    fn adapter_without_key_env_rejects_account() {
+    fn pty_adapters_reject_an_account_and_never_inject() {
         let conn = migrated_conn();
         let ws = workspace::create(&conn, "W", "mixed").unwrap().id;
         let acct = account(&conn, &ws, "anthropic");
         let store = temp_store();
         store.set(&acct.keychain_ref, SENTINEL).unwrap();
 
-        let gemini = find_adapter("gemini").unwrap();
-        let err = resolve_session_env(&gemini, Some(&acct), &store).unwrap_err();
-        assert_eq!(err, "This agent does not support API key accounts");
-        assert!(!err.contains(SENTINEL));
+        // The whole point of ambient-PTY: a key bound to a PTY agent must NEVER reach the
+        // env. With api_key_env: None, an account is rejected (not silently injected).
+        for id in ["claude-code", "codex", "gemini"] {
+            let a = find_adapter(id).unwrap();
+            let err = resolve_session_env(&a, Some(&acct), &store).unwrap_err();
+            assert!(!err.contains(SENTINEL), "{id} leaked the key");
+            assert_eq!(err, "This agent does not support API key accounts");
+        }
     }
 
     #[test]
@@ -754,7 +757,7 @@ mod account_env_tests {
         let acct = account(&conn, &ws, "anthropic"); // key never stored
         let store = temp_store();
 
-        let claude = find_adapter("claude-code").unwrap();
+        let claude = find_adapter("claude-agent-sdk").unwrap();
         let err = resolve_session_env(&claude, Some(&acct), &store).unwrap_err();
         assert_eq!(err, "Stored key for this account is missing");
     }

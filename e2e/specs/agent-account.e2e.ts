@@ -16,19 +16,13 @@ const visibleTermText = () =>
     return vis ? (vis.textContent ?? "") : "";
   });
 
-const accountOptionTexts = () =>
-  browser.execute(() =>
-    Array.from(document.querySelectorAll('[aria-label="Provider account"] option')).map((o) =>
-      (o.textContent ?? "").trim(),
-    ),
-  );
-
 /**
- * Milestone 10b-2a: bind a provider account to an agent terminal and inject its
- * key into the PTY env. The fake agent prints KEY:set / KEY:unset (boolean, never
- * the value), so injection is proven without ever exposing the key.
+ * PTY agents (Claude Code, Codex, Gemini) are ambient-login: they use the user's own
+ * CLI login and do NOT receive an injected API key. Provider accounts apply to the SDK
+ * agent only. The fake agent prints KEY:set / KEY:unset so injection is proven without
+ * ever exposing the key.
  */
-describe("agent account injection", () => {
+describe("PTY agents are ambient-login (no per-account binding)", () => {
   before(async () => {
     fs.rmSync(REPO, { recursive: true, force: true });
     fs.mkdirSync(REPO, { recursive: true });
@@ -75,36 +69,22 @@ describe("agent account injection", () => {
     await (await $('[data-testid="provider-row"]')).waitForExist({ timeout: 10_000 });
   });
 
-  it("injects the bound account key into the terminal env (never the value)", async () => {
+  it("PTY agents offer no provider-account select", async () => {
     await (await $("button*=Agents")).click();
     await (await $('[aria-label="Agent worktree"]')).selectByVisibleText("feat/acct");
     await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Code");
-    await (await $('[aria-label="Provider account"]')).selectByVisibleText("My Anthropic");
-    await (await $("button*=New terminal")).click();
-
-    await (await $('[data-testid="agent-terminal"]')).waitForExist({ timeout: 10_000 });
-    await browser.waitUntil(async () => (await visibleTermText()).includes("KEY:set"), {
-      timeout: 15_000,
-      timeoutMsg: "expected KEY:set (the injected account key reached the agent env)",
-    });
-    // The raw key value must NEVER appear in the terminal/transcript.
-    expect(await visibleTermText()).not.toContain(KEY_VALUE);
+    await $('[aria-label="Provider account"]').waitForExist({ reverse: true, timeout: 5_000 });
+    await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Codex");
+    await $('[aria-label="Provider account"]').waitForExist({ reverse: true, timeout: 5_000 });
   });
 
-  it("filters accounts by adapter and omits the key when none is selected", async () => {
-    // Codex (openai) must NOT offer the anthropic account.
-    await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Codex");
-    expect(await accountOptionTexts()).not.toContain("My Anthropic");
-
-    // Claude Code offers it; pick Default (no key) and launch -> KEY:unset.
+  it("a PTY agent launches with the ambient login (no key injected -> KEY:unset)", async () => {
     await (await $('[aria-label="Agent CLI"]')).selectByVisibleText("Claude Code");
-    expect(await accountOptionTexts()).toContain("My Anthropic");
-    await (await $('[aria-label="Provider account"]')).selectByVisibleText("Default (no key)");
     await (await $("button*=New terminal")).click();
-
+    await (await $('[data-testid="agent-terminal"]')).waitForExist({ timeout: 10_000 });
     await browser.waitUntil(async () => (await visibleTermText()).includes("KEY:unset"), {
       timeout: 15_000,
-      timeoutMsg: "expected KEY:unset for a Default (no account) session",
+      timeoutMsg: "expected KEY:unset -- a PTY agent injects no account key",
     });
   });
 });

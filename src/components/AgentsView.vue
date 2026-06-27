@@ -233,6 +233,13 @@ async function openTerminal() {
             {{ acct.display_name }}
           </option>
         </select>
+        <p
+          v-if="!adapterSupportsAccounts && !selectedIsSdk"
+          class="muted new__hint"
+          data-testid="pty-ambient-hint"
+        >
+          This agent uses your own CLI login. Accounts apply to the SDK agent only.
+        </p>
         <select
           v-if="selectedIsSdk"
           v-model="newMode"
@@ -306,7 +313,7 @@ async function openTerminal() {
         <div class="agents__termhead">
           <span class="muted">
             {{ t.session.command }} · {{ t.session.status }}
-            <template v-if="accountLabel(t.session.account_id)">
+            <template v-if="t.session.kind === 'sdk' && accountLabel(t.session.account_id)">
               · {{ accountLabel(t.session.account_id) }}
             </template>
           </span>
