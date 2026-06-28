@@ -1,0 +1,23 @@
+src-tauri/tauri.conf.json
+  s_b49f7388e23022::t_e2443307898832 29-31
+package.json
+  s_b49f7388e23022::t_5764f7fcfb420c 18-20
+sidecar/claude-agent-sdk/package-lock.json
+  s_b49f7388e23022::t_0a614358ab8497 1-239
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b0e5f3da5ca865d16f976a2d89bb4fb34e33129d",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
