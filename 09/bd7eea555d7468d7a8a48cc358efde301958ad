@@ -1,0 +1,19 @@
+docs/superpowers/plans/2026-06-28-packaging-release-ci.md
+  s_b49f7388e23022::t_bcc9fdf5a904e8 1-577
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "09bd7eea555d7468d7a8a48cc358efde301958ad",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
