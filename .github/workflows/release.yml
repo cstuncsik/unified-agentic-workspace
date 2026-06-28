@@ -142,7 +142,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p dist-assets
-          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir dist-assets
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir dist-assets --clobber
+          rm -f dist-assets/checksums.txt # a prior run's checksums must not be re-attested/re-hashed
       - uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
         with:
           subject-path: 'dist-assets/*'
@@ -151,4 +152,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           (cd dist-assets && shasum -a 256 * > checksums.txt)
-          gh release upload "$GITHUB_REF_NAME" dist-assets/checksums.txt --repo "$GITHUB_REPOSITORY"
+          gh release upload "$GITHUB_REF_NAME" dist-assets/checksums.txt --repo "$GITHUB_REPOSITORY" --clobber
