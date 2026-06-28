@@ -1,0 +1,21 @@
+scripts/prune-sidecar-vendor.test.mjs
+  s_b49f7388e23022::t_90b07f70fb396f 1-75
+scripts/prune-sidecar-vendor.mjs
+  s_b49f7388e23022::t_045e0fde99e3a8 1-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "83c7eb5989c8b2cda0ed6c96474ea9d3d3fba5fe",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
