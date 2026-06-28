@@ -90,6 +90,7 @@ const MODELS_TIMEOUT: Duration = Duration::from_secs(10);
 /// Anthropic-only; every failure is a fixed opaque error.
 #[tauri::command]
 pub fn list_account_models(
+    app: AppHandle,
     state: State<'_, Mutex<Connection>>,
     coding_workspace_id: String,
     account_id: String,
@@ -119,7 +120,7 @@ pub fn list_account_models(
     };
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/tmp"));
     let stdout = sdk::spawn_oneshot(
-        &agent::resolve_sdk_models_sidecar(),
+        &agent::resolve_sdk_models_sidecar(app.path().resource_dir().ok().as_deref()),
         &[],
         &cwd,
         &[
@@ -421,7 +422,7 @@ fn start_sdk_session(
     transcript_path: PathBuf,
     transcript_str: String,
 ) -> Result<AgentSession, String> {
-    let sidecar = agent::resolve_sdk_sidecar();
+    let sidecar = agent::resolve_sdk_sidecar(app.path().resource_dir().ok().as_deref());
     // The injected key value — for masking it out of everything we persist/emit.
     let injected_key = adapter
         .api_key_env

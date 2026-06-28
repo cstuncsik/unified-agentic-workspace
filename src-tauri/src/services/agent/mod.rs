@@ -7,6 +7,7 @@ pub mod pty;
 pub mod sdk;
 
 use serde::Serialize;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AgentCapabilities {
@@ -124,29 +125,46 @@ pub fn resolve_program(adapter: &AgentAdapter) -> String {
     }
 }
 
-/// Resolve a sidecar script path: an env override (trimmed, non-empty) wins; else the
-/// bundled relative path made ABSOLUTE against the backend cwd (the child is spawned
-/// with cwd=worktree, so a relative program path would resolve there and fail).
-fn resolve_sidecar_script(env_var: &str, rel: &str) -> String {
+/// Resolve a sidecar script path. Precedence: an env override (trimmed, non-empty) wins;
+/// then in DEV the repo sidecar via cwd (its node_modules is the working-tree install);
+/// in RELEASE the bundled resource ONLY — never cwd (the agent-writable worktree, a
+/// script-hijack/key-exfil vector). A missing release resource -> a non-existent path ->
+/// spawn fails closed (the post-build assertion guarantees a correctly-bundled app has it).
+fn resolve_sidecar_script(env_var: &str, rel: &str, resource_dir: Option<&Path>, dev: bool) -> String {
     if let Ok(v) = std::env::var(env_var) {
         let trimmed = v.trim();
         if !trimmed.is_empty() {
             return trimmed.to_string();
         }
     }
-    std::env::current_dir()
+    if dev {
+        return std::env::current_dir()
+            .map(|d| d.join(rel).to_string_lossy().into_owned())
+            .unwrap_or_else(|_| rel.to_string());
+    }
+    resource_dir
         .map(|d| d.join(rel).to_string_lossy().into_owned())
-        .unwrap_or_else(|_| rel.to_string())
+        .unwrap_or_else(|| format!("/nonexistent/uaw-bundled-sidecar/{rel}"))
 }
 
 /// The Node sidecar entry for the SDK agent (`UAW_AGENT_SDK_SIDECAR` overrides).
-pub fn resolve_sdk_sidecar() -> String {
-    resolve_sidecar_script("UAW_AGENT_SDK_SIDECAR", "sidecar/claude-agent-sdk/index.mjs")
+pub fn resolve_sdk_sidecar(resource_dir: Option<&Path>) -> String {
+    resolve_sidecar_script(
+        "UAW_AGENT_SDK_SIDECAR",
+        "sidecar/claude-agent-sdk/index.mjs",
+        resource_dir,
+        cfg!(debug_assertions),
+    )
 }
 
 /// The Node helper that lists a provider's models (`UAW_AGENT_SDK_MODELS` overrides).
-pub fn resolve_sdk_models_sidecar() -> String {
-    resolve_sidecar_script("UAW_AGENT_SDK_MODELS", "sidecar/claude-agent-sdk/list-models.mjs")
+pub fn resolve_sdk_models_sidecar(resource_dir: Option<&Path>) -> String {
+    resolve_sidecar_script(
+        "UAW_AGENT_SDK_MODELS",
+        "sidecar/claude-agent-sdk/list-models.mjs",
+        resource_dir,
+        cfg!(debug_assertions),
+    )
 }
 
 #[cfg(test)]
@@ -191,20 +209,59 @@ mod tests {
     #[test]
     fn resolve_sdk_sidecar_prefers_env() {
         std::env::remove_var("UAW_AGENT_SDK_SIDECAR");
-        assert!(resolve_sdk_sidecar().ends_with("index.mjs"));
+        assert!(resolve_sdk_sidecar(None).ends_with("index.mjs"));
         std::env::set_var("UAW_AGENT_SDK_SIDECAR", "/tmp/fake-sdk");
-        assert_eq!(resolve_sdk_sidecar(), "/tmp/fake-sdk");
+        assert_eq!(resolve_sdk_sidecar(None), "/tmp/fake-sdk");
         std::env::remove_var("UAW_AGENT_SDK_SIDECAR");
     }
 
     #[test]
     fn resolve_sdk_models_sidecar_prefers_env() {
         std::env::remove_var("UAW_AGENT_SDK_MODELS");
-        assert!(resolve_sdk_models_sidecar().ends_with("list-models.mjs"));
+        assert!(resolve_sdk_models_sidecar(None).ends_with("list-models.mjs"));
         std::env::set_var("UAW_AGENT_SDK_MODELS", "/tmp/fake-models");
-        let resolved = resolve_sdk_models_sidecar();
+        let resolved = resolve_sdk_models_sidecar(None);
         std::env::remove_var("UAW_AGENT_SDK_MODELS");
         assert_eq!(resolved, "/tmp/fake-models");
+    }
+
+    #[test]
+    fn resolve_sidecar_script_precedence() {
+        use std::fs;
+        let rel = "sidecar/claude-agent-sdk/index.mjs";
+        let env_var = "UAW_TEST_SIDECAR_PREC"; // unique name -> no shared-var race
+        std::env::remove_var(env_var);
+
+        // A resource dir WITH the script present.
+        let res = std::env::temp_dir().join(format!("uaw-res-{}", crate::util::new_id()));
+        fs::create_dir_all(res.join("sidecar/claude-agent-sdk")).unwrap();
+        fs::write(res.join(rel), b"").unwrap();
+        let res_str = res.to_string_lossy().into_owned();
+
+        // release + Some(dir) with the file -> the resource path (FULL path, contains the dir).
+        let r = resolve_sidecar_script(env_var, rel, Some(&res), false);
+        assert!(r.contains(&res_str), "release should use the resource dir: {r}");
+        assert!(r.ends_with("index.mjs"));
+
+        // release + None -> a non-cwd sentinel (fail closed, never the worktree cwd).
+        let r = resolve_sidecar_script(env_var, rel, None, false);
+        assert!(!r.contains(&res_str));
+        assert!(r.starts_with("/nonexistent/"), "release+no-resource must fail closed: {r}");
+
+        // dev -> cwd, ignores the resource dir.
+        let cwd = std::env::current_dir().unwrap().to_string_lossy().into_owned();
+        let r = resolve_sidecar_script(env_var, rel, Some(&res), true);
+        assert!(!r.contains(&res_str), "dev must use cwd, not the resource dir: {r}");
+        assert!(r.starts_with(&cwd), "dev must use cwd: {r}");
+        assert!(r.ends_with("index.mjs"));
+
+        // env override wins over a present resource, in both modes.
+        std::env::set_var(env_var, "/tmp/override.mjs");
+        assert_eq!(resolve_sidecar_script(env_var, rel, Some(&res), false), "/tmp/override.mjs");
+        assert_eq!(resolve_sidecar_script(env_var, rel, Some(&res), true), "/tmp/override.mjs");
+        std::env::remove_var(env_var);
+
+        let _ = fs::remove_dir_all(&res);
     }
 
     #[test]
