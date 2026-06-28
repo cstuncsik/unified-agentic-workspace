@@ -70,9 +70,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --draft --prerelease --title "UAW $GITHUB_REF_NAME" --notes-file body.md
-          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name==\"$GITHUB_REF_NAME\") | .id")
-          test -n "$id" || { echo "could not resolve release id"; exit 1; }
+          # Idempotent on re-run: reuse an existing draft rather than failing on "already exists".
+          gh release create "$GITHUB_REF_NAME" --draft --prerelease --title "UAW $GITHUB_REF_NAME" --notes-file body.md \
+            || echo "a release for $GITHUB_REF_NAME already exists — reusing it"
+          # Resolve the NUMERIC id (tauri-action's releaseId) via `gh release view` — its richer
+          # draft lookup is lag-resistant, unlike the REST list endpoint which a just-created
+          # draft can briefly miss. Retry to ride out any residual replication lag.
+          id=""
+          for _ in $(seq 1 10); do
+            id=$(gh release view "$GITHUB_REF_NAME" --json databaseId --jq .databaseId 2>/dev/null || true)
+            [ -n "$id" ] && [ "$id" != "null" ] && break
+            sleep 2
+          done
+          { [ -n "$id" ] && [ "$id" != "null" ]; } || { echo "could not resolve release id"; exit 1; }
           echo "release_id=$id" >> "$GITHUB_OUTPUT"
 
   build:
