@@ -1,0 +1,25 @@
+scripts/prune-sidecar-vendor.mjs
+  s_b49f7388e23022::t_882609ac5cde4b 26
+  s_b49f7388e23022::t_045e0fde99e3a8 1-25,27-42,45-90
+  s_b49f7388e23022::t_c2874fc789bad8 43-44
+scripts/prune-sidecar-vendor.test.mjs
+  s_b49f7388e23022::t_90b07f70fb396f 1-33,35-71
+  s_b49f7388e23022::t_a5fdf13a3c964f 72-95
+  s_b49f7388e23022::t_b5bf9bb1b48ea3 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ba8965f36e675f8aa13bb2de9d7c04a47cd6b65a",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
