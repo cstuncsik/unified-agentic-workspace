@@ -15,7 +15,9 @@
     "e2e": "wdio run wdio.conf.ts",
     "e2e:build": "tauri build --debug --no-bundle",
     "e2e:typecheck": "tsc -p tsconfig.e2e.json",
-    "e2e:docker": "docker build -f Dockerfile.e2e -t uaw-e2e . && docker run --rm uaw-e2e"
+    "e2e:docker": "docker build -f Dockerfile.e2e -t uaw-e2e . && docker run --rm uaw-e2e",
+    "sidecar:install": "npm ci --ignore-scripts --omit=optional --prefix sidecar/claude-agent-sdk",
+    "bundle": "pnpm sidecar:install && pnpm tauri build"
   },
   "dependencies": {
     "@relements/core": "^1.0.0",
