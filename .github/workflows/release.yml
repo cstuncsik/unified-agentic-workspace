@@ -1,3 +1,6 @@
+# This workflow builds + publishes SHIPPED binaries, so its actions are pinned to commit SHAs
+# (a mutable tag = malware in the installer). The CI gates (e2e/keystore/sdk-sidecar) stay on
+# @vN tags — only this workflow ships artifacts. See docs/superpowers/specs/2026-06-28-packaging-release-ci-design.md.
 name: release
 
 on:
@@ -144,6 +147,8 @@ jobs:
           mkdir -p dist-assets
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir dist-assets --clobber
           rm -f dist-assets/checksums.txt # a prior run's checksums must not be re-attested/re-hashed
+      # A re-run appends a second, harmless attestation (they're append-only); `gh attestation
+      # verify` matches any valid one. Only the checksums asset upload is clobber-idempotent.
       - uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
         with:
           subject-path: 'dist-assets/*'

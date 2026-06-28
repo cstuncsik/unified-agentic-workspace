@@ -197,7 +197,7 @@ fn node_bin(env: &[(String, String)]) -> String {
 /// failure; any other spawn error keeps the caller's opaque string.
 fn node_spawn_error(e: &std::io::Error, opaque: &str) -> String {
     if e.kind() == std::io::ErrorKind::NotFound {
-        "Node.js was not found on PATH. The SDK agent requires Node.js >= 18 (PTY agents are unaffected).".to_string()
+        "Node.js was not found on PATH. The SDK agent requires Node.js 18+ (PTY agents are unaffected).".to_string()
     } else {
         opaque.to_string()
     }

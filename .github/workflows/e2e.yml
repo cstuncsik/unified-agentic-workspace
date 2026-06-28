@@ -33,6 +33,7 @@ jobs:
           workspaces: src-tauri -> target
 
       - name: Install Linux WebKit + WebDriver deps
+        # base webkit/gtk/appindicator set is shared with .github/workflows/release.yml — keep in sync
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
