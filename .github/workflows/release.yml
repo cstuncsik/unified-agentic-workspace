@@ -1,0 +1,160 @@
+# This workflow builds + publishes SHIPPED binaries, so its actions are pinned to commit SHAs
+# (a mutable tag = malware in the installer). The CI gates (e2e/keystore/sdk-sidecar) stay on
+# @vN tags — only this workflow ships artifacts. See docs/superpowers/specs/2026-06-28-packaging-release-ci-design.md.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/prune-sidecar-vendor.mjs'
+      - 'scripts/prune-sidecar-vendor.test.mjs'
+      - 'src-tauri/tauri.conf.json'
+      - 'sidecar/claude-agent-sdk/**'
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+      - name: Lint + unit-test the prune script (no deps)
+        run: |
+          node --check scripts/prune-sidecar-vendor.mjs
+          node --test scripts/prune-sidecar-vendor.test.mjs
+
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: test-prune
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Assert the tag matches the bundle version
+        run: |
+          conf="v$(jq -r .version src-tauri/tauri.conf.json)"
+          cargo_v="v$(grep -m1 '^version' src-tauri/Cargo.toml | cut -d'"' -f2)"
+          test "$conf" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != tauri.conf version $conf"; exit 1; }
+          test "$cargo_v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != Cargo.toml version $cargo_v"; exit 1; }
+      - name: Write the release body
+        run: |
+          cat > body.md <<'EOF'
+          UAW desktop app — unsigned pre-release.
+
+          **Requires [Node.js](https://nodejs.org) 18+ on your PATH** — the SDK agent runs a Node sidecar. (The interactive PTY agents use your own CLI logins.)
+
+          ### Install (unsigned)
+          - **macOS**: right-click the app -> Open the first time, or run `xattr -dr com.apple.quarantine /Applications/UAW.app`.
+          - **Windows**: SmartScreen warns -> "More info" -> "Run anyway".
+          - **Linux**: `chmod +x` the AppImage, or install the `.deb`.
+
+          ### Verify
+          - `checksums.txt` (SHA-256) detects download corruption — not tampering (a compromised release could regenerate it).
+          - Build provenance: `gh attestation verify <file> --repo ${{ github.repository }}`.
+          EOF
+      - name: Create the draft prerelease and emit its id
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --prerelease --title "UAW $GITHUB_REF_NAME" --notes-file body.md
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name==\"$GITHUB_REF_NAME\") | .id")
+          test -n "$id" || { echo "could not resolve release id"; exit 1; }
+          echo "release_id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: mac-universal
+            args: --target universal-apple-darwin --bundles dmg
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - os: ubuntu-22.04
+            target: linux-x64
+            args: --bundles appimage,deb
+            rust-targets: ''
+          - os: windows-latest
+            target: win-x64
+            args: --bundles nsis
+            rust-targets: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@67ef31d5b988238dd797d409d6f9574278e20537 # master (stable)
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust-targets }}
+      - uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: src-tauri -> target
+      - if: matrix.os == 'ubuntu-22.04'
+        name: Install Linux bundle deps
+        # keep in sync with .github/workflows/e2e.yml (webkit/gtk/appindicator base set)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libgtk-3-dev
+      - name: Install the sidecar (pinned, no scripts, no native optionals)
+        run: pnpm sidecar:install
+      - name: Prune the sidecar vendor tree for this target
+        run: node scripts/prune-sidecar-vendor.mjs --target ${{ matrix.target }}
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.args }}
+
+  finalize:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the release installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist-assets
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir dist-assets --clobber
+          rm -f dist-assets/checksums.txt # a prior run's checksums must not be re-attested/re-hashed
+      # A re-run appends a second, harmless attestation (they're append-only); `gh attestation
+      # verify` matches any valid one. Only the checksums asset upload is clobber-idempotent.
+      - uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
+        with:
+          subject-path: 'dist-assets/*'
+      - name: Generate + upload SHA-256 checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd dist-assets && shasum -a 256 * > checksums.txt)
+          gh release upload "$GITHUB_REF_NAME" dist-assets/checksums.txt --repo "$GITHUB_REPOSITORY" --clobber

@@ -95,6 +95,8 @@ Reference products like [Craft Agents](https://github.com/craft-ai-agents/craft-
 
 Prerequisites: Node.js, [pnpm](https://pnpm.io/), and the Rust toolchain (`rustc` / `cargo`). See the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for platform-specific system dependencies.
 
+- **Node.js 18+ on your PATH** — the SDK agent runs a Node sidecar. (The interactive PTY agents — claude/codex/gemini — use your own CLI logins and don't need this.)
+
 ```bash
 pnpm install                                      # install frontend dependencies
 pnpm tauri dev                                     # run the desktop app with hot reload
