@@ -176,8 +176,8 @@ pub struct SdkSpawned {
 /// The Node binary used to run the sidecar scripts. Resolved from the injected env
 /// first (so tests swap it per-call without mutating process-global state — keeping
 /// the env-mutating tests parallel-safe), then the backend's own env, defaulting to
-/// `node` on PATH (the documented prerequisite; a missing `node` yields the existing
-/// opaque spawn error).
+/// `node` on PATH (the documented prerequisite; a missing `node` yields an actionable
+/// Node-prerequisite error — see `node_spawn_error`).
 fn node_bin(env: &[(String, String)]) -> String {
     // Injected env first (test-swappable, parallel-safe), then process env, else `node`.
     // Mirror the `resolve_sidecar_script` idiom: a blank/whitespace override falls through.
@@ -189,6 +189,17 @@ fn node_bin(env: &[(String, String)]) -> String {
     match std::env::var("UAW_AGENT_NODE") {
         Ok(v) if !v.trim().is_empty() => v,
         _ => "node".to_string(),
+    }
+}
+
+/// Map a sidecar spawn failure to a message. A missing `node` (ENOENT) gets a specific,
+/// actionable error so a shipped app surfaces the Node prerequisite instead of an opaque
+/// failure; any other spawn error keeps the caller's opaque string.
+fn node_spawn_error(e: &std::io::Error, opaque: &str) -> String {
+    if e.kind() == std::io::ErrorKind::NotFound {
+        "Node.js was not found on PATH. The SDK agent requires Node.js >= 18 (PTY agents are unaffected).".to_string()
+    } else {
+        opaque.to_string()
     }
 }
 
@@ -225,7 +236,7 @@ pub fn spawn(
     }
     let mut child = cmd
         .spawn()
-        .map_err(|_| "Failed to start the agent sidecar".to_string())?;
+        .map_err(|e| node_spawn_error(&e, "Failed to start the agent sidecar"))?;
     let stdout = child
         .stdout
         .take()
@@ -267,7 +278,7 @@ pub fn spawn_oneshot(
     for (k, v) in env {
         cmd.env(k, v);
     }
-    let mut child = cmd.spawn().map_err(|_| ERR.to_string())?;
+    let mut child = cmd.spawn().map_err(|e| node_spawn_error(&e, ERR))?;
     let mut stdout = child.stdout.take().ok_or_else(|| ERR.to_string())?;
     let pid = child.id();
 
@@ -428,8 +439,9 @@ mod tests {
     }
 
     #[test]
-    fn spawn_missing_node_is_opaque() {
-        // A missing `node` (not a missing script) is now the spawn-failure path.
+    fn spawn_missing_node_reports_node_not_found() {
+        // A missing `node` (ENOENT) must surface the Node prerequisite, not an opaque error,
+        // so a shipped app tells the user what to install.
         let err = match spawn(
             "goal",
             "plan",
@@ -441,7 +453,7 @@ mod tests {
             Err(e) => e,
             Ok(_) => panic!("expected spawn to fail"),
         };
-        assert_eq!(err, "Failed to start the agent sidecar");
+        assert!(err.contains("Node.js was not found on PATH"), "got: {err}");
     }
 
     #[test]
