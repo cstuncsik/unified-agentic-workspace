@@ -21,8 +21,8 @@ jobs:
   test-prune:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
       - name: Lint + unit-test the prune script (no deps)
@@ -39,7 +39,7 @@ jobs:
     outputs:
       release_id: ${{ steps.create.outputs.release_id }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - name: Assert the tag matches the bundle version
         run: |
           conf="v$(jq -r .version src-tauri/tauri.conf.json)"
@@ -95,17 +95,18 @@ jobs:
             rust-targets: ''
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@67ef31d5b988238dd797d409d6f9574278e20537 # master (stable)
         with:
+          toolchain: stable
           targets: ${{ matrix.rust-targets }}
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: src-tauri -> target
       - if: matrix.os == 'ubuntu-22.04'
@@ -120,7 +121,7 @@ jobs:
         run: pnpm sidecar:install
       - name: Prune the sidecar vendor tree for this target
         run: node scripts/prune-sidecar-vendor.mjs --target ${{ matrix.target }}
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -142,7 +143,7 @@ jobs:
         run: |
           mkdir -p dist-assets
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir dist-assets
-      - uses: actions/attest-build-provenance@v1
+      - uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1
         with:
           subject-path: 'dist-assets/*'
       - name: Generate + upload SHA-256 checksums
