@@ -1,0 +1,25 @@
+src-tauri/src/services/agent/pty.rs
+  s_b49f7388e23022::t_ed796296271fd0 143-146
+  s_b49f7388e23022::t_3baecb9d0b3d7e 55-60
+  s_b49f7388e23022::t_e8a5f52332ee6c 141-142
+  s_b49f7388e23022::t_c75c2c4bb1e7dc 147-149
+src-tauri/src/services/agent/sdk.rs
+  s_b49f7388e23022::t_fad96118f4a4bd 460
+  s_b49f7388e23022::t_851b4b614f12ba 203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5b3f4167cccdaab3adca8a5f8918064394dfee41",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
