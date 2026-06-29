@@ -3,6 +3,9 @@
 //! parses those lines, masks the injected key, derives terminal status, and owns
 //! the piped-child spawn + process-group kill. The pure functions below are the
 //! unit-tested seams; the transcript-write/emit closure lives in the command.
+//!
+//! Bare-name spawns here rely on the process PATH being augmented at startup
+//! (see `services::login_path`) so a GUI-launched bundle can find the binary.
 
 use serde::Serialize;
 use std::io::BufRead;

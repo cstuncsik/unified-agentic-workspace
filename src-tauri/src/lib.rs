@@ -10,6 +10,9 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Repair the process PATH from the login shell BEFORE Tauri starts any thread, so
+    // bare-name agent/git spawns resolve in a GUI-launched bundle. See services::login_path.
+    services::login_path::augment_process_path();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {

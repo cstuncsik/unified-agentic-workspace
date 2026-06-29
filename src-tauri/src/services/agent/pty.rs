@@ -2,6 +2,9 @@
 //! pump its output. The Tauri layer (commands/agent_sessions.rs) wires the pump
 //! to persistence + event emission; this file stays free of Tauri/DB so the read
 //! loop and spawn are unit-testable.
+//!
+//! Bare-name spawns here rely on the process PATH being augmented at startup
+//! (see `services::login_path`) so a GUI-launched bundle can find the binary.
 
 use std::io::Read;
 use std::path::Path;
