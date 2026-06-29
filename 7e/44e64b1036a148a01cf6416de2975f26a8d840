@@ -1,0 +1,31 @@
+src-tauri/src/services/agent/sdk.rs
+  s_b49f7388e23022::t_e3f99270e3cc9c 6-8
+src-tauri/src/services/agent/pty.rs
+  s_b49f7388e23022::t_ad560d296b0825 5-7
+src-tauri/src/services/login_path.rs
+  s_b49f7388e23022::t_8cbdf3217ca242 73
+  s_b49f7388e23022::t_78756cecb1c4cb 105
+  s_b49f7388e23022::t_46bb4c3546b929 1-72,74-104,106-112,114-190,192-208
+  s_b49f7388e23022::t_f922748d9f4e9c 191
+  s_b49f7388e23022::t_b056b714706611 113
+src-tauri/src/lib.rs
+  s_b49f7388e23022::t_8fde6dd52ae525 13-15
+src-tauri/src/services/mod.rs
+  s_b49f7388e23022::t_4d11813cc8dcee 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7e44e64b1036a148a01cf6416de2975f26a8d840",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
