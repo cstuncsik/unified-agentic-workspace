@@ -3,6 +3,7 @@ pub mod board;
 pub mod dispatch;
 pub mod git;
 pub mod keystore;
+pub mod login_path;
 pub mod check;
 pub mod completion;
 pub mod review;

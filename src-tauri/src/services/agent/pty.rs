@@ -2,6 +2,9 @@
 //! pump its output. The Tauri layer (commands/agent_sessions.rs) wires the pump
 //! to persistence + event emission; this file stays free of Tauri/DB so the read
 //! loop and spawn are unit-testable.
+//!
+//! Bare-name spawns here rely on the process PATH being augmented at startup
+//! (see `services::login_path`) so a GUI-launched bundle can find the binary.
 
 use std::io::Read;
 use std::path::Path;
@@ -49,7 +52,12 @@ pub fn spawn(
     let child = pair
         .slave
         .spawn_command(cmd)
-        .map_err(|e| format!("failed to start agent '{program}': {e}"))?;
+        .map_err(|e| {
+            format!(
+                "failed to start agent '{program}': {e}\n\
+                 If '{program}' is installed, set UAW_AGENT_BIN to its full path."
+            )
+        })?;
     // Drop the slave so the reader hits EOF when the child exits.
     drop(pair.slave);
 
@@ -128,6 +136,22 @@ mod tests {
         spawned.child.wait().expect("child waits");
         std::env::remove_var("UAW_SPAWN_PROBE");
         assert_eq!(String::from_utf8_lossy(&out), "INJECTED");
+    }
+
+    #[test]
+    fn spawn_missing_program_hints_at_uaw_agent_bin() {
+        let err = match spawn(
+            "uaw-definitely-not-a-real-binary-xyz",
+            &[],
+            &std::env::temp_dir(),
+            &[],
+            80,
+            24,
+        ) {
+            Err(e) => e,
+            Ok(_) => panic!("spawning a nonexistent program must fail"),
+        };
+        assert!(err.contains("UAW_AGENT_BIN"), "got: {err}");
     }
 
     #[test]

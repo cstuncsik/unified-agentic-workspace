@@ -3,6 +3,9 @@
 //! parses those lines, masks the injected key, derives terminal status, and owns
 //! the piped-child spawn + process-group kill. The pure functions below are the
 //! unit-tested seams; the transcript-write/emit closure lives in the command.
+//!
+//! Bare-name spawns here rely on the process PATH being augmented at startup
+//! (see `services::login_path`) so a GUI-launched bundle can find the binary.
 
 use serde::Serialize;
 use std::io::BufRead;
@@ -197,7 +200,7 @@ fn node_bin(env: &[(String, String)]) -> String {
 /// failure; any other spawn error keeps the caller's opaque string.
 fn node_spawn_error(e: &std::io::Error, opaque: &str) -> String {
     if e.kind() == std::io::ErrorKind::NotFound {
-        "Node.js was not found on PATH. The SDK agent requires Node.js 18+ (PTY agents are unaffected).".to_string()
+        "Node.js was not found on PATH. The SDK agent requires Node.js 18+ — install it or set UAW_AGENT_NODE to its path (PTY agents are unaffected).".to_string()
     } else {
         opaque.to_string()
     }
@@ -454,6 +457,7 @@ mod tests {
             Ok(_) => panic!("expected spawn to fail"),
         };
         assert!(err.contains("Node.js was not found on PATH"), "got: {err}");
+        assert!(err.contains("UAW_AGENT_NODE"), "got: {err}");
     }
 
     #[test]
