@@ -1,0 +1,40 @@
+src/composables/useUpdater.ts
+  s_b49f7388e23022::t_c1e1ae7c664536 1-45
+package.json
+  s_b49f7388e23022::t_41253bac2024bd 4
+  s_b49f7388e23022::t_827775b3b78ef5 26-27
+wdio.conf.ts
+  s_b49f7388e23022::t_d6d5a712e22dff 63
+src/components/UpdateBanner.vue
+  s_b49f7388e23022::t_17decd50f955be 10-15,18-20
+  s_b49f7388e23022::t_fdbfbbe3187cfb 1-9,16-17,21-33
+e2e/specs/smoke.e2e.ts
+  s_b49f7388e23022::t_c1dd0603ba5f46 40-41
+src/App.vue
+  s_b49f7388e23022::t_17decd50f955be 86-92,94-115,117-125,127-135,137-145,147-155,157-165,167-175,177-185,187-195,197-219,221-241
+  s_b49f7388e23022::t_82a056f939c568 83-85
+  s_b49f7388e23022::t_ca9443144752d8 268-273,277-278
+  s_b49f7388e23022::t_2083354f04a4ae 242
+  s_b49f7388e23022::t_5afd8dd87a530b 3
+  s_b49f7388e23022::t_98556192111b5d 58,60-62
+  s_b49f7388e23022::t_3029e0baa48694 36
+  s_b49f7388e23022::t_5df915f08a2c32 25-26
+pnpm-lock.yaml
+  s_b49f7388e23022::t_1b754e02c7cf54 20-25,848-853,3079-3086
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "b0f60ef9b0a1269e239c3ea692e70ca19fcca740",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
