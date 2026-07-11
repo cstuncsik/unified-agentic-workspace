@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import { useWorkspacesStore } from "./stores/workspaces";
 import { useProjectsStore } from "./stores/projects";
 import { useSessionsStore } from "./stores/sessions";
@@ -21,6 +22,8 @@ import ProvidersView from "./components/ProvidersView.vue";
 import ArtifactsView from "./components/ArtifactsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
+import UpdateBanner from "./components/UpdateBanner.vue";
+import { useUpdater } from "./composables/useUpdater";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
@@ -30,6 +33,7 @@ const coding = useCodingWorkspacesStore();
 const reviews = useReviewsStore();
 const artifacts = useArtifactsStore();
 const providerAccounts = useProviderAccountsStore();
+const updater = useUpdater();
 
 type ActiveView =
   | "inbox"
@@ -51,8 +55,11 @@ function openInbox(filterKey: string | null) {
   sessions.setFilter(filterKey);
 }
 
-onMounted(() => {
+onMounted(async () => {
   workspaces.load();
+  if (await invoke<boolean>("updater_enabled")) {
+    void updater.checkForUpdate({ silent: true });
+  }
 });
 
 watch(
@@ -73,156 +80,166 @@ watch(
 </script>
 
 <template>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">UAW</div>
-      <WorkspaceSwitcher />
-      <nav class="nav">
-        <button class="re-button" data-variant="brand" type="button" @click="openInbox(null)">
-          New Session
-        </button>
+  <div class="app-root">
+    <UpdateBanner />
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">UAW</div>
+        <WorkspaceSwitcher />
+        <nav class="nav">
+          <button class="re-button" data-variant="brand" type="button" @click="openInbox(null)">
+            New Session
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'inbox' && !sessions.filterGroup ? 'page' : undefined"
-          type="button"
-          @click="openInbox(null)"
-        >
-          Inbox
-        </button>
-        <button
-          v-for="group in STATUS_GROUPS"
-          :key="group.key"
-          class="re-button nav__sub"
-          data-variant="ghost"
-          :aria-current="
-            activeView === 'inbox' && sessions.filterGroup === group.key ? 'page' : undefined
-          "
-          type="button"
-          @click="openInbox(group.key)"
-        >
-          {{ group.label }}
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'inbox' && !sessions.filterGroup ? 'page' : undefined"
+            type="button"
+            @click="openInbox(null)"
+          >
+            Inbox
+          </button>
+          <button
+            v-for="group in STATUS_GROUPS"
+            :key="group.key"
+            class="re-button nav__sub"
+            data-variant="ghost"
+            :aria-current="
+              activeView === 'inbox' && sessions.filterGroup === group.key ? 'page' : undefined
+            "
+            type="button"
+            @click="openInbox(group.key)"
+          >
+            {{ group.label }}
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'projects' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'projects'"
-        >
-          Projects
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'projects' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'projects'"
+          >
+            Projects
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'artifacts' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'artifacts'"
-        >
-          Artifacts
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'artifacts' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'artifacts'"
+          >
+            Artifacts
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'sources' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'sources'"
-        >
-          Sources
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'sources' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'sources'"
+          >
+            Sources
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'coding' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'coding'"
-        >
-          Coding
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'coding' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'coding'"
+          >
+            Coding
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'reviews' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'reviews'"
-        >
-          Reviews
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'reviews' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'reviews'"
+          >
+            Reviews
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'board' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'board'"
-        >
-          Board
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'board' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'board'"
+          >
+            Board
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'agents' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'agents'"
-        >
-          Agents
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'agents' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'agents'"
+          >
+            Agents
+          </button>
 
-        <button
-          class="re-button"
-          data-variant="ghost"
-          :aria-current="activeView === 'providers' ? 'page' : undefined"
-          type="button"
-          @click="activeView = 'providers'"
-        >
-          Providers
-        </button>
+          <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'providers' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'providers'"
+          >
+            Providers
+          </button>
 
-        <button
-          v-for="section in plannedSections"
-          :key="section"
-          class="re-button"
-          data-variant="ghost"
-          type="button"
-          disabled
-        >
-          {{ section }}
-        </button>
-      </nav>
-      <div class="sidebar__footer">
-        <ThemeToggle />
-        <span class="sidebar__footer-label">Unified Agentic Workspace</span>
-      </div>
-    </aside>
+          <button
+            v-for="section in plannedSections"
+            :key="section"
+            class="re-button"
+            data-variant="ghost"
+            type="button"
+            disabled
+          >
+            {{ section }}
+          </button>
+        </nav>
+        <div class="sidebar__footer">
+          <ThemeToggle />
+          <button
+            class="re-button"
+            data-variant="ghost"
+            @click="updater.checkForUpdate({ silent: false })"
+          >
+            Check for updates
+          </button>
+          <span class="sidebar__footer-label">Unified Agentic Workspace</span>
+        </div>
+      </aside>
 
-    <main class="main">
-      <p v-if="workspaces.loading" class="muted">Loading workspace…</p>
-      <p v-else-if="workspaces.error" class="error">{{ workspaces.error }}</p>
-      <template v-else-if="workspaces.current">
-        <header class="main__header">
-          <h1>{{ workspaces.current.name }}</h1>
-          <span class="badge">{{ workspaces.current.kind }}</span>
-        </header>
-        <SessionsView v-if="activeView === 'inbox'" />
-        <ProjectsView v-else-if="activeView === 'projects'" />
-        <ArtifactsView v-else-if="activeView === 'artifacts'" />
-        <SourcesView v-else-if="activeView === 'sources'" />
-        <CodingView v-else-if="activeView === 'coding'" />
-        <ReviewsView v-else-if="activeView === 'reviews'" />
-        <BoardView v-else-if="activeView === 'board'" />
-        <AgentsView v-else-if="activeView === 'agents'" />
-        <ProvidersView v-else-if="activeView === 'providers'" />
-      </template>
-      <p v-else class="muted">No workspace selected.</p>
-    </main>
-    <ConfirmDialog />
+      <main class="main">
+        <p v-if="workspaces.loading" class="muted">Loading workspace…</p>
+        <p v-else-if="workspaces.error" class="error">{{ workspaces.error }}</p>
+        <template v-else-if="workspaces.current">
+          <header class="main__header">
+            <h1>{{ workspaces.current.name }}</h1>
+            <span class="badge">{{ workspaces.current.kind }}</span>
+          </header>
+          <SessionsView v-if="activeView === 'inbox'" />
+          <ProjectsView v-else-if="activeView === 'projects'" />
+          <ArtifactsView v-else-if="activeView === 'artifacts'" />
+          <SourcesView v-else-if="activeView === 'sources'" />
+          <CodingView v-else-if="activeView === 'coding'" />
+          <ReviewsView v-else-if="activeView === 'reviews'" />
+          <BoardView v-else-if="activeView === 'board'" />
+          <AgentsView v-else-if="activeView === 'agents'" />
+          <ProvidersView v-else-if="activeView === 'providers'" />
+        </template>
+        <p v-else class="muted">No workspace selected.</p>
+      </main>
+      <ConfirmDialog />
+    </div>
   </div>
 </template>
 
@@ -248,10 +265,17 @@ body {
 </style>
 
 <style scoped>
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 .app {
   display: grid;
   grid-template-columns: 240px 1fr;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
 }
 
 .sidebar {
