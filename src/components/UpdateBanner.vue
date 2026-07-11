@@ -8,6 +8,7 @@ const { available, installing, installAndRestart, dismiss } = useUpdater();
   <div v-if="available" class="update-banner" role="status" data-testid="update-banner">
     <span>UAW {{ available.version }} is available.</span>
     <button
+      type="button"
       class="re-button"
       data-variant="brand"
       :disabled="installing"
@@ -15,7 +16,13 @@ const { available, installing, installAndRestart, dismiss } = useUpdater();
     >
       {{ installing ? "Updating…" : "Update & Restart" }}
     </button>
-    <button class="re-button" data-variant="ghost" :disabled="installing" @click="dismiss">
+    <button
+      type="button"
+      class="re-button"
+      data-variant="ghost"
+      :disabled="installing"
+      @click="dismiss"
+    >
       Dismiss
     </button>
   </div>

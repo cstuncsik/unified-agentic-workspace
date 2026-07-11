@@ -208,6 +208,7 @@ watch(
         <div class="sidebar__footer">
           <ThemeToggle />
           <button
+            type="button"
             class="re-button"
             data-variant="ghost"
             @click="updater.checkForUpdate({ silent: false })"
