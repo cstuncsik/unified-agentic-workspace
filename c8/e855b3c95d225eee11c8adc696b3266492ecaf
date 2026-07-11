@@ -1,0 +1,22 @@
+.github/workflows/release.yml
+  s_b49f7388e23022::t_0f93acc552cfe7 55
+  s_b49f7388e23022::t_0b57f06f380426 68
+  s_b49f7388e23022::t_99fcb11d9a5275 74
+  s_b49f7388e23022::t_d18fdae656fb07 140-141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "c8e855b3c95d225eee11c8adc696b3266492ecaf",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
