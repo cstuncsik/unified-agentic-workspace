@@ -1,0 +1,21 @@
+src/App.vue
+  s_b49f7388e23022::t_5af88230f90d3a 211
+src/components/UpdateBanner.vue
+  s_b49f7388e23022::t_903b788f15be0f 11,19-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "c2c1780cb5d11552d42186f4801c063b576f4eeb",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
