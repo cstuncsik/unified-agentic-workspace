@@ -96,7 +96,7 @@ jobs:
         include:
           - os: macos-latest
             target: mac-universal
-            args: --target universal-apple-darwin --bundles dmg
+            args: --target universal-apple-darwin --bundles app,dmg
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
           - os: ubuntu-22.04
             target: linux-x64
