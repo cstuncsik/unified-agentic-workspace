@@ -37,6 +37,8 @@ describe("UAW core loop", () => {
     const heading = await $("h1");
     await heading.waitForExist({ timeout: 30_000 });
     await expect(heading).toHaveText("Default");
+    // UAW_DISABLE_UPDATER is set for e2e, so the update banner must never render.
+    expect(await $('[data-testid="update-banner"]').isExisting()).toBe(false);
   });
 
   it("creates a project", async () => {

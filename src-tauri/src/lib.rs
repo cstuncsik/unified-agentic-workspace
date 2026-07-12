@@ -8,6 +8,13 @@ use std::sync::Mutex;
 
 use tauri::Manager;
 
+/// Whether the frontend should run the startup update check. The e2e harness sets
+/// UAW_DISABLE_UPDATER so the auto-check (and its banner) never fire during tests.
+#[tauri::command]
+fn updater_enabled() -> bool {
+    std::env::var("UAW_DISABLE_UPDATER").is_err()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Repair the process PATH from the login shell BEFORE Tauri starts any thread, so
@@ -15,6 +22,8 @@ pub fn run() {
     services::login_path::augment_process_path();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // UAW_DB_PATH overrides the database location so e2e runs get a fresh,
             // isolated SQLite file instead of the shared per-user app data dir.
@@ -95,6 +104,7 @@ pub fn run() {
             commands::dispatch::dispatch_artifact,
             commands::dispatch::get_dispatched_goal,
             commands::board::get_board,
+            updater_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

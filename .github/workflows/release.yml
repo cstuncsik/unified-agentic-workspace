@@ -52,7 +52,7 @@ jobs:
       - name: Write the release body
         run: |
           cat > body.md <<'EOF'
-          UAW desktop app — unsigned pre-release.
+          UAW desktop app — unsigned release.
 
           **Requires [Node.js](https://nodejs.org) 18+ on your PATH** — the SDK agent runs a Node sidecar. (The interactive PTY agents use your own CLI logins.)
 
@@ -65,13 +65,13 @@ jobs:
           - `checksums.txt` (SHA-256) detects download corruption — not tampering (a compromised release could regenerate it).
           - Build provenance: `gh attestation verify <file> --repo ${{ github.repository }}`.
           EOF
-      - name: Create the draft prerelease and emit its id
+      - name: Create the draft release and emit its id
         id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Idempotent on re-run: reuse an existing draft rather than failing on "already exists".
-          gh release create "$GITHUB_REF_NAME" --draft --prerelease --title "UAW $GITHUB_REF_NAME" --notes-file body.md \
+          gh release create "$GITHUB_REF_NAME" --draft --title "UAW $GITHUB_REF_NAME" --notes-file body.md \
             || echo "a release for $GITHUB_REF_NAME already exists — reusing it"
           # Resolve the NUMERIC id (tauri-action's releaseId) via `gh release view` — its richer
           # draft lookup is lag-resistant, unlike the REST list endpoint which a just-created
@@ -137,6 +137,8 @@ jobs:
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
