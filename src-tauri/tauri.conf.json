@@ -40,7 +40,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2QzMwNjJCREFDQkUzQ0EKUldUSzQ4dmFLd2JEdGhEVmdHeE15c0tDL09Yb3BQZzkvQWlFdzhDV1hWalNqTVVRYStTOWFVT0EK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGOTQzQ0ZFMjM1REY1RUIKUldUcjlWMGovanlVL3pBV2ppb3BkS0tsSEV3bDEvdy83THNETmZRbEU2UnYwejFnS04zVm5rU0oK",
       "endpoints": ["https://github.com/cstuncsik/unified-agentic-workspace/releases/latest/download/latest.json"]
     }
   }
