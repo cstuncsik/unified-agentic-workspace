@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useWorkspacesStore } from "./stores/workspaces";
 import { useProjectsStore } from "./stores/projects";
 import { useSessionsStore } from "./stores/sessions";
@@ -34,6 +35,7 @@ const reviews = useReviewsStore();
 const artifacts = useArtifactsStore();
 const providerAccounts = useProviderAccountsStore();
 const updater = useUpdater();
+const version = ref("");
 
 type ActiveView =
   | "inbox"
@@ -60,6 +62,7 @@ onMounted(async () => {
   if (await invoke<boolean>("updater_enabled")) {
     void updater.checkForUpdate({ silent: true });
   }
+  version.value = await getVersion();
 });
 
 watch(
@@ -215,7 +218,9 @@ watch(
           >
             Check for updates
           </button>
-          <span class="sidebar__footer-label">Unified Agentic Workspace</span>
+          <span class="sidebar__footer-label"
+            >Unified Agentic Workspace<template v-if="version"> v{{ version }}</template></span
+          >
         </div>
       </aside>
 
