@@ -159,6 +159,19 @@ jobs:
           mkdir -p dist-assets
           gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir dist-assets --clobber
           rm -f dist-assets/checksums.txt # a prior run's checksums must not be re-attested/re-hashed
+      - name: Inject auto-generated release notes into latest.json (updater "What's new")
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The updater surfaces latest.json's `notes` as Update.body in-app. Fill it from
+          # GitHub's generated notes (merged PRs since the previous tag). Safe to edit here —
+          # minisign signatures cover the artifact bytes, not this manifest — and it runs
+          # before the attestation + checksums so both cover the notes-filled file that ships.
+          notes=$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" --jq .body)
+          jq --arg n "$notes" '.notes = $n' dist-assets/latest.json > dist-assets/latest.json.tmp
+          mv dist-assets/latest.json.tmp dist-assets/latest.json
+          gh release upload "$GITHUB_REF_NAME" dist-assets/latest.json --repo "$GITHUB_REPOSITORY" --clobber
       # A re-run appends a second, harmless attestation (they're append-only); `gh attestation
       # verify` matches any valid one. Only the checksums asset upload is clobber-idempotent.
       - uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v1

@@ -3,7 +3,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { useToast } from "./useToast";
 
-const available = ref<{ version: string } | null>(null);
+const available = ref<{ version: string; body?: string } | null>(null);
 const installing = ref(false);
 let pending: Update | null = null;
 
@@ -15,7 +15,7 @@ export function useUpdater() {
     try {
       pending = await check();
       if (pending) {
-        available.value = { version: pending.version };
+        available.value = { version: pending.version, body: pending.body };
       } else {
         available.value = null; // clear a stale banner from a prior check
         if (!silent) toast.success("You're on the latest version.");
