@@ -1,0 +1,25 @@
+src/components/UpdateBanner.vue
+  s_b49f7388e23022::t_ddc6785239c367 40-41,46-68
+  s_b49f7388e23022::t_59d4895a2f6d12 9-33
+.github/workflows/release.yml
+  s_b49f7388e23022::t_50f15c92474143 162-174
+src/composables/useUpdater.ts
+  s_b49f7388e23022::t_aef545f3efd151 18
+  s_b49f7388e23022::t_0645250763d9b9 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "17926b2007068c7466c377ba7b7e17914ae6b576",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
