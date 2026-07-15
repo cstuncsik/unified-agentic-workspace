@@ -45,6 +45,9 @@ pub fn spawn(
     cmd.args(args);
     cmd.cwd(cwd);
     cmd.env("TERM", "xterm-256color");
+    // Advertise 24-bit color: xterm.js renders truecolor, and Claude Code gates its
+    // colored status-bar pills on it — 256-color alone renders them washed-out grayscale.
+    cmd.env("COLORTERM", "truecolor");
     for (key, value) in env {
         cmd.env(key, value);
     }
