@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -7,7 +7,7 @@ import "@xterm/xterm/css/xterm.css";
 import * as api from "../api/agentSessions";
 import type { AgentOutput } from "../types/agentSession";
 
-const props = defineProps<{ sessionId: string }>();
+const props = defineProps<{ sessionId: string; active: boolean }>();
 
 const host = ref<HTMLDivElement | null>(null);
 let term: Terminal | null = null;
@@ -29,6 +29,28 @@ function doFit() {
   }
   api.resizeAgentSession(props.sessionId, term.cols, term.rows).catch(() => {});
 }
+
+// On re-show. The pane keeps every tab mounted and toggles visibility with
+// `v-show`, so switching workspace/tab hides this terminal via `display:none`.
+// Under `display:none` xterm's renderer goes stale — writes keep updating the
+// buffer but the canvas stops painting — so a full-screen TUI (Claude Code)
+// comes back garbled, its frame stranded at the wrong size. When we become
+// visible again, re-fit (resync xterm + PTY dimensions) then refresh() to
+// repaint every row from the buffer. `flush: "post"` runs after the DOM is
+// visible; rAF waits for layout so the fit measures real dimensions.
+watch(
+  () => props.active,
+  (isActive) => {
+    if (!isActive) return;
+    requestAnimationFrame(() => {
+      if (!term) return;
+      doFit();
+      term.refresh(0, term.rows - 1);
+      term.scrollToBottom();
+    });
+  },
+  { flush: "post" },
+);
 
 onMounted(async () => {
   term = new Terminal({ convertEol: false, cursorBlink: true, fontSize: 13 });
