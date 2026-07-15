@@ -1,0 +1,21 @@
+src-tauri/src/services/login_path.rs
+  s_b49f7388e23022::t_f2a4724ee92ebe 70-76
+  s_b49f7388e23022::t_8e1c17c98cc268 85
+  s_b49f7388e23022::t_8763b4593129a8 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "878722acda94da803d286384577d4b7bee528370",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
