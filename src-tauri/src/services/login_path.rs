@@ -1,8 +1,8 @@
 //! Repairs the process PATH at startup. A GUI-launched app (macOS Finder/Dock, some
 //! Linux desktop launches) inherits a minimal PATH lacking the user's shell-configured
 //! dirs (homebrew/nvm/asdf), so bare-name spawns — the PTY agents, the SDK's `node`,
-//! `git` — can't find their binaries. `augment_process_path()` runs the user's LOGIN
-//! shell once to recover the real PATH and merges it in. It is called from `run()`
+//! `git` — can't find their binaries. `augment_process_path()` runs the user's login +
+//! interactive shell once to recover the real PATH and merges it in. It is called from `run()`
 //! BEFORE Tauri spawns any thread: `set_var` under a concurrent `getenv` is a data race.
 
 /// Windows/non-unix GUI apps inherit the full registry/system PATH — nothing to repair.
@@ -67,8 +67,13 @@ mod imp {
             .unwrap_or(false)
     }
 
-    /// Run `<shell> -lc <PROBE>` from `cwd` (neutral, so no repo-local rc is sourced) with
-    /// the nonce in env; return the captured PATH or None on any failure/timeout. The shell
+    /// Run `<shell> -ilc <PROBE>` from `cwd` (neutral, so no repo-local rc is sourced) with
+    /// the nonce in env; return the captured PATH or None on any failure/timeout. Interactive
+    /// (`-i`) is deliberate — do NOT "simplify" it back to `-lc`: users routinely add PATH
+    /// (nvm, `~/.local/bin`, pyenv) in `.zshrc`/`.bashrc`, which a *non*-interactive login
+    /// shell never sources, so `-lc` silently missed those dirs. The interactive-rc noise that
+    /// invites is handled: the nonce brackets the PATH (banners stripped in `extract_path`),
+    /// `stdin` is null (no input hang), and the caller's timeout backstops a slow rc. The shell
     /// is a param (no `$SHELL` read, no `set_var`) so this is unit-testable + parallel-safe.
     fn run_login_shell(
         shell: &Path,
@@ -77,7 +82,7 @@ mod imp {
         timeout: Duration,
     ) -> Option<String> {
         let child = Command::new(shell)
-            .arg("-lc")
+            .arg("-ilc")
             .arg(PROBE)
             .env(NONCE_ENV, nonce)
             .current_dir(cwd)
