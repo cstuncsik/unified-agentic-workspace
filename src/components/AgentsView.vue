@@ -329,7 +329,11 @@ async function openTerminal() {
           </button>
         </div>
         <SdkRunView v-if="t.session.kind === 'sdk'" :session="t.session" />
-        <TerminalTab v-else-if="t.session.kind === 'pty'" :session-id="t.session.id" />
+        <TerminalTab
+          v-else-if="t.session.kind === 'pty'"
+          :session-id="t.session.id"
+          :active="t.session.id === store.activeId"
+        />
       </div>
     </div>
     <p v-else class="muted">No terminals open. Pick a worktree and a CLI to start one.</p>
