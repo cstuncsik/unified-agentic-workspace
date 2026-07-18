@@ -6,4 +6,5 @@ pub mod keystore;
 pub mod login_path;
 pub mod check;
 pub mod completion;
+pub mod config;
 pub mod review;
