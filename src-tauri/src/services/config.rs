@@ -4,6 +4,10 @@
 //! the command boundary supplies the path/`AppHandle` and reads `UAW_AGENT_BIN`.
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+
+use serde_json::Value;
 
 /// Config `agents.<id>` is honored ONLY for these PTY adapters. Any other id
 /// (the SDK adapter `claude-agent-sdk`, or a typo) is dropped on parse — the SDK
@@ -67,6 +71,74 @@ pub fn spawn_args(base: &[&str], cfg_args: &[String]) -> Vec<String> {
     base.iter().map(|s| s.to_string()).chain(cfg_args.iter().cloned()).collect()
 }
 
+/// The config path: `UAW_CONFIG_PATH` if set, else `<app_data_dir>/config.json`.
+/// No CWD component — a repo/worktree can never influence which file is read.
+pub fn config_path(env_override: Option<OsString>, app_data_dir: &Path) -> PathBuf {
+    match env_override {
+        Some(p) => PathBuf::from(p),
+        None => app_data_dir.join("config.json"),
+    }
+}
+
+/// Parse config JSON leniently: valid JSON object → extract known fields, bad
+/// fields silently default (no warning); non-JSON / non-object → all defaults +
+/// a DATALESS warning (line/col only — never echo the input, which may hold a
+/// secret the user pasted). Unknown keys ignored; `agents` restricted to PTY ids.
+pub fn parse(contents: &str) -> (Config, Option<String>) {
+    let value: Value = match serde_json::from_str(contents) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                Config::default(),
+                Some(format!(
+                    "config.json is invalid (line {}, col {}); using defaults.",
+                    e.line(),
+                    e.column()
+                )),
+            );
+        }
+    };
+    let Some(obj) = value.as_object() else {
+        return (
+            Config::default(),
+            Some("config.json must be a JSON object; using defaults.".to_string()),
+        );
+    };
+
+    let mut cfg = Config::default();
+
+    if let Some(agents) = obj.get("agents").and_then(Value::as_object) {
+        for id in PTY_AGENT_IDS {
+            if let Some(a) = agents.get(*id).and_then(Value::as_object) {
+                let bin = a.get("bin").and_then(Value::as_str).map(str::to_string);
+                let args = a
+                    .get("args")
+                    .and_then(Value::as_array)
+                    .map(|arr| arr.iter().filter_map(Value::as_str).map(str::to_string).collect())
+                    .unwrap_or_default();
+                cfg.agents.insert((*id).to_string(), AgentConfig { bin, args });
+            }
+        }
+    }
+
+    if let Some(term) = obj.get("terminal").and_then(Value::as_object) {
+        if let Some(fs) = term.get("fontSize").and_then(Value::as_u64) {
+            if (6..=72).contains(&fs) {
+                cfg.terminal.font_size = fs as u16;
+            }
+        }
+        if let Some(theme) = term.get("theme").and_then(Value::as_object) {
+            for (k, v) in theme {
+                if let Some(s) = v.as_str() {
+                    cfg.terminal.theme.insert(k.clone(), s.to_string());
+                }
+            }
+        }
+    }
+
+    (cfg, None)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,5 +163,66 @@ mod tests {
         assert_eq!(spawn_args(&["--foo"], &cfg), vec!["--foo", "--model", "sonnet"]);
         assert_eq!(spawn_args(&[], &cfg), vec!["--model", "sonnet"]);
         assert_eq!(spawn_args(&["--foo"], &[]), vec!["--foo"]);
+    }
+
+    #[test]
+    fn config_path_env_wins_else_app_data() {
+        let dir = Path::new("/data");
+        assert_eq!(config_path(Some("/custom.json".into()), dir), PathBuf::from("/custom.json"));
+        assert_eq!(config_path(None, dir), PathBuf::from("/data/config.json"));
+        assert!(config_path(None, dir).is_absolute());
+    }
+
+    #[test]
+    fn parse_bad_json_all_defaults_plus_warning() {
+        let (cfg, w) = parse("{ not json");
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE);
+        assert!(cfg.agents.is_empty());
+        assert!(w.unwrap().contains("using defaults"));
+    }
+
+    #[test]
+    fn parse_non_object_top_level_defaults_plus_warning() {
+        let (_cfg, w) = parse("[1,2,3]");
+        assert!(w.is_some());
+    }
+
+    #[test]
+    fn parse_lenient_one_bad_field_keeps_the_good_ones_no_warning() {
+        let (cfg, w) = parse(r#"{"agents":{"codex":{"args":["-x"]}},"terminal":{"fontSize":"big"}}"#);
+        assert_eq!(cfg.agents.get("codex").unwrap().args, vec!["-x".to_string()]);
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE);
+        assert!(w.is_none());
+    }
+
+    #[test]
+    fn parse_font_size_bounds() {
+        for bad in ["5", "73", "0", "-1", "12.5", "\"big\""] {
+            let (cfg, _) = parse(&format!(r#"{{"terminal":{{"fontSize":{bad}}}}}"#));
+            assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE, "fontSize {bad} should default");
+        }
+        for ok in [6u16, 13, 72] {
+            let (cfg, _) = parse(&format!(r#"{{"terminal":{{"fontSize":{ok}}}}}"#));
+            assert_eq!(cfg.terminal.font_size, ok);
+        }
+    }
+
+    #[test]
+    fn parse_theme_partial_merge_drops_non_strings_keeps_defaults() {
+        let (cfg, _) = parse(r##"{"terminal":{"theme":{"background":"#123456","red":42,"custom":"#abc"}}}"##);
+        assert_eq!(cfg.terminal.theme.get("background").unwrap(), "#123456");
+        assert_eq!(cfg.terminal.theme.get("green").unwrap(), "#0dbc79");
+        assert_eq!(cfg.terminal.theme.get("red").unwrap(), "#cd3131"); // non-string dropped, default kept
+        assert_eq!(cfg.terminal.theme.get("custom").unwrap(), "#abc");
+    }
+
+    #[test]
+    fn parse_agents_whitelist_excludes_sdk_and_unknown_ids() {
+        let (cfg, _) = parse(
+            r#"{"agents":{"claude-agent-sdk":{"bin":"/evil"},"nope":{"bin":"/x"},"codex":{"bin":"/ok"}}}"#,
+        );
+        assert!(cfg.agents.get("claude-agent-sdk").is_none());
+        assert!(cfg.agents.get("nope").is_none());
+        assert_eq!(cfg.agents.get("codex").unwrap().bin.as_deref(), Some("/ok"));
     }
 }
