@@ -197,6 +197,16 @@ mod tests {
     }
 
     #[test]
+    fn read_unreadable_file_defaults_plus_warning() {
+        let p = tmp_path("unreadable.json");
+        std::fs::write(&p, [0xffu8, 0xfe]).unwrap();
+        let (cfg, w) = read_config_at(&p);
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE);
+        assert!(w.unwrap().contains("unreadable"));
+    }
+
+    #[test]
     #[cfg(unix)]
     fn read_symlink_is_refused() {
         let target = tmp_path("target.json");
@@ -250,8 +260,9 @@ mod tests {
 
     #[test]
     fn parse_non_object_top_level_defaults_plus_warning() {
-        let (_cfg, w) = parse("[1,2,3]");
-        assert!(w.is_some());
+        let (cfg, w) = parse("[1,2,3]");
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE);
+        assert!(w.unwrap().contains("must be a JSON object"));
     }
 
     #[test]
@@ -291,5 +302,14 @@ mod tests {
         assert!(!cfg.agents.contains_key("claude-agent-sdk"));
         assert!(!cfg.agents.contains_key("nope"));
         assert_eq!(cfg.agents.get("codex").unwrap().bin.as_deref(), Some("/ok"));
+    }
+
+    #[test]
+    fn parse_agents_args_drops_non_strings() {
+        let (cfg, _) = parse(r#"{"agents":{"codex":{"args":["--x",42,"--y"]}}}"#);
+        assert_eq!(
+            cfg.agents.get("codex").unwrap().args,
+            vec!["--x".to_string(), "--y".to_string()],
+        );
     }
 }

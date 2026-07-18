@@ -21,6 +21,8 @@ pub fn load(app: &AppHandle) -> (Config, Option<String>) {
 }
 
 #[derive(Serialize)]
+// Intentional camelCase: matches xterm's `Terminal({ fontSize, theme })` option names — the
+// only camelCase serde boundary in src-tauri. Don't "fix" this to snake_case.
 #[serde(rename_all = "camelCase")]
 pub struct TerminalOut {
     font_size: u16,

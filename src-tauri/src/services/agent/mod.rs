@@ -197,6 +197,18 @@ mod tests {
     }
 
     #[test]
+    fn pty_adapter_ids_match_the_config_allowlist() {
+        // Guards a future PTY adapter being silently un-configurable: config.rs's
+        // PTY_AGENT_IDS allowlist must stay in sync with the registry's "pty" adapters.
+        let mut pty_ids: Vec<_> =
+            adapters().iter().filter(|a| a.kind == "pty").map(|a| a.id).collect();
+        let mut allowlist: Vec<_> = crate::services::config::PTY_AGENT_IDS.to_vec();
+        pty_ids.sort_unstable();
+        allowlist.sort_unstable();
+        assert_eq!(pty_ids, allowlist);
+    }
+
+    #[test]
     fn resolve_sdk_sidecar_prefers_env() {
         std::env::remove_var("UAW_AGENT_SDK_SIDECAR");
         assert!(resolve_sdk_sidecar(None).ends_with("index.mjs"));
