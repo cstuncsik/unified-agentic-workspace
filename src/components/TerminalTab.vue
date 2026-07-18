@@ -6,8 +6,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import * as api from "../api/agentSessions";
 import type { AgentOutput } from "../types/agentSession";
+import { useAppConfig } from "../stores/appConfig";
 
 const props = defineProps<{ sessionId: string; active: boolean }>();
+const appConfig = useAppConfig();
 
 const host = ref<HTMLDivElement | null>(null);
 let term: Terminal | null = null;
@@ -53,7 +55,8 @@ watch(
 );
 
 onMounted(async () => {
-  term = new Terminal({ convertEol: false, cursorBlink: true, fontSize: 13 });
+  const { fontSize, theme } = appConfig.terminal;
+  term = new Terminal({ convertEol: false, cursorBlink: true, fontSize, theme });
   fit = new FitAddon();
   term.loadAddon(fit);
   if (host.value) term.open(host.value);
