@@ -257,7 +257,7 @@ pub fn start_agent_session(
     // Per-agent bin/args from the user config. UAW_AGENT_BIN is read HERE (command
     // boundary, not in services/) and still overrides the bin so e2e can inject a
     // fake program. The SDK adapter returned above, so config never reaches it.
-    let (cfg, _warning) = super::config::load(&app);
+    let (cfg, _warning) = crate::commands::config::load(&app);
     let cfg_agent = cfg.agents.get(adapter.id);
     let env_bin = std::env::var("UAW_AGENT_BIN").ok();
     let program = config::pick_program(
