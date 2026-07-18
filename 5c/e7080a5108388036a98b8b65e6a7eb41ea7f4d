@@ -1,0 +1,25 @@
+wdio.conf.ts
+  s_b49f7388e23022::t_9ccc055e868b6c 57
+e2e/specs/agent-terminal.e2e.ts
+  s_b49f7388e23022::t_2b75707aa567d2 221
+  s_b49f7388e23022::t_1168d47c50d666 186-198,222-233
+  s_b49f7388e23022::t_b1d79f1bf592ce 200-213,215
+  s_b49f7388e23022::t_6f811c1f6a63f3 220
+  s_b49f7388e23022::t_c7bb1936a11e2c 199,214,216-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "5ce7080a5108388036a98b8b65e6a7eb41ea7f4d",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
