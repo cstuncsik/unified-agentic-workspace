@@ -228,6 +228,13 @@ describe("agent terminals", () => {
       timeoutMsg: "expected the terminal to start cleanly with a present config.json",
     });
 
+    // The fake agent echoes its argv; config.json's agents["claude-code"].args must
+    // have reached the spawned process.
+    await browser.waitUntil(async () => (await visibleTermText()).includes("--uaw-e2e"), {
+      timeout: 15_000,
+      timeoutMsg: "expected the configured agent arg to reach the spawned process",
+    });
+
     // A schema-valid config.json must never surface a warning/error toast.
     expect(await $('.re-toast[data-tone="danger"]').isExisting()).toBe(false);
   });

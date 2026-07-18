@@ -57,6 +57,7 @@ if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${OPENAI_API_KEY:-}" ]; then
 else
   printf 'KEY:unset\n'
 fi
+printf 'ARGV:[%s]\n' "$*"
 printf 'AGENT-READY\n'
 exec cat
 AGENT
