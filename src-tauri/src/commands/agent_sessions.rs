@@ -12,6 +12,7 @@ use crate::models::agent_session::{self, AgentSession};
 use crate::models::provider_account::{self, ProviderAccount};
 use crate::models::{coding_workspace, event};
 use crate::services::agent::{self, pty, sdk, AgentAdapter};
+use crate::services::config;
 use crate::services::keystore::{self, KeyStore, KeyStoreError};
 use crate::util::new_id;
 
@@ -253,10 +254,20 @@ pub fn start_agent_session(
     }
 
     // ---- PTY path ----
-    let program = agent::resolve_program(&adapter);
-
-    // Spawn the PTY.
-    let args: Vec<&str> = adapter.args.clone();
+    // Per-agent bin/args from the user config. UAW_AGENT_BIN is read HERE (command
+    // boundary, not in services/) and still overrides the bin so e2e can inject a
+    // fake program. The SDK adapter returned above, so config never reaches it.
+    let (cfg, _warning) = super::config::load(&app);
+    let cfg_agent = cfg.agents.get(adapter.id);
+    let env_bin = std::env::var("UAW_AGENT_BIN").ok();
+    let program = config::pick_program(
+        env_bin.as_deref(),
+        cfg_agent.and_then(|a| a.bin.as_deref()),
+        adapter.program,
+    );
+    let cfg_args: &[String] = cfg_agent.map(|a| a.args.as_slice()).unwrap_or(&[]);
+    let args_owned = config::spawn_args(&adapter.args, cfg_args);
+    let args: Vec<&str> = args_owned.iter().map(String::as_str).collect();
     let spawned = pty::spawn(&program, &args, Path::new(&worktree_path), &env, cols, rows)?;
     let pty::Spawned {
         handle,

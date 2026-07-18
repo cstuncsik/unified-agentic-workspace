@@ -288,8 +288,8 @@ mod tests {
         let (cfg, _) = parse(
             r#"{"agents":{"claude-agent-sdk":{"bin":"/evil"},"nope":{"bin":"/x"},"codex":{"bin":"/ok"}}}"#,
         );
-        assert!(cfg.agents.get("claude-agent-sdk").is_none());
-        assert!(cfg.agents.get("nope").is_none());
+        assert!(!cfg.agents.contains_key("claude-agent-sdk"));
+        assert!(!cfg.agents.contains_key("nope"));
         assert_eq!(cfg.agents.get("codex").unwrap().bin.as_deref(), Some("/ok"));
     }
 }

@@ -115,16 +115,6 @@ pub fn find_adapter(id: &str) -> Option<AgentAdapter> {
     adapters().into_iter().find(|a| a.id == id)
 }
 
-/// The program to actually spawn for an adapter: `UAW_AGENT_BIN` overrides every
-/// adapter (so e2e can substitute a fake interactive program); otherwise the
-/// adapter's default program.
-pub fn resolve_program(adapter: &AgentAdapter) -> String {
-    match std::env::var("UAW_AGENT_BIN") {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => adapter.program.to_string(),
-    }
-}
-
 /// Resolve a sidecar script path. Precedence: an env override (trimmed, non-empty) wins;
 /// then in DEV the repo sidecar via cwd (its node_modules is the working-tree install);
 /// in RELEASE the bundled resource ONLY — never cwd (the agent-writable worktree, a
@@ -262,16 +252,5 @@ mod tests {
         std::env::remove_var(env_var);
 
         let _ = fs::remove_dir_all(&res);
-    }
-
-    #[test]
-    fn resolve_program_prefers_env_override() {
-        let claude = find_adapter("claude-code").unwrap();
-        // Default (no override) — guard against a leaked env var from another test.
-        std::env::remove_var("UAW_AGENT_BIN");
-        assert_eq!(resolve_program(&claude), "claude");
-        std::env::set_var("UAW_AGENT_BIN", "/tmp/fake-agent");
-        assert_eq!(resolve_program(&claude), "/tmp/fake-agent");
-        std::env::remove_var("UAW_AGENT_BIN");
     }
 }
