@@ -54,6 +54,7 @@ export const config: WebdriverIO.Config = {
     process.env.UAW_DB_PATH = path.join(sessionDir, "uaw.sqlite");
     process.env.UAW_WORKTREES_DIR = path.join(sessionDir, "worktrees");
     process.env.UAW_TRANSCRIPTS_DIR = path.join(sessionDir, "transcripts");
+    process.env.UAW_CONFIG_PATH = path.join(sessionDir, "config.json");
     process.env.UAW_AGENT_BIN = "/tmp/uaw-fake-agent";
     // Debug binary only: select a hermetic file-backed keystore so the test app
     // never touches the real OS keychain.
