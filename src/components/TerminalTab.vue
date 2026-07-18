@@ -6,10 +6,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import "@xterm/xterm/css/xterm.css";
 import * as api from "../api/agentSessions";
 import type { AgentOutput } from "../types/agentSession";
-import { useAppConfig } from "../stores/appConfig";
+import { useAppConfigStore } from "../stores/appConfig";
 
 const props = defineProps<{ sessionId: string; active: boolean }>();
-const appConfig = useAppConfig();
+const appConfig = useAppConfigStore();
 
 const host = ref<HTMLDivElement | null>(null);
 let term: Terminal | null = null;

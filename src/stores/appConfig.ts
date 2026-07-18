@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { defineStore } from "pinia";
 import type { ITheme } from "@xterm/xterm";
-import { getAppConfig } from "../api/appConfig";
+import * as api from "../api/appConfig";
 
 // Kept in sync with `services/config.rs::default_theme()`. Duplicated JS-side so
 // the pre-load terminal is correct without gating mount on the async load.
@@ -28,7 +28,7 @@ const DEFAULT_THEME: ITheme = {
 };
 const DEFAULT_FONT_SIZE = 13;
 
-export const useAppConfig = defineStore("appConfig", () => {
+export const useAppConfigStore = defineStore("appConfig", () => {
   const terminal = ref<{ fontSize: number; theme: ITheme }>({
     fontSize: DEFAULT_FONT_SIZE,
     theme: DEFAULT_THEME,
@@ -38,7 +38,8 @@ export const useAppConfig = defineStore("appConfig", () => {
 
   function load() {
     if (!inflight) {
-      inflight = getAppConfig()
+      inflight = api
+        .getAppConfig()
         .then((cfg) => {
           terminal.value = cfg.terminal;
           warning.value = cfg.warning;
