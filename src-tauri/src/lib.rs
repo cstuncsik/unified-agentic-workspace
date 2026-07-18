@@ -104,6 +104,7 @@ pub fn run() {
             commands::dispatch::dispatch_artifact,
             commands::dispatch::get_dispatched_goal,
             commands::board::get_board,
+            commands::config::get_app_config,
             updater_enabled,
         ])
         .run(tauri::generate_context!())

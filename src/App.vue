@@ -25,6 +25,8 @@ import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 import UpdateBanner from "./components/UpdateBanner.vue";
 import { useUpdater } from "./composables/useUpdater";
+import { useToast } from "./composables/useToast";
+import { useAppConfigStore } from "./stores/appConfig";
 
 const workspaces = useWorkspacesStore();
 const projects = useProjectsStore();
@@ -35,6 +37,8 @@ const reviews = useReviewsStore();
 const artifacts = useArtifactsStore();
 const providerAccounts = useProviderAccountsStore();
 const updater = useUpdater();
+const toast = useToast();
+const appConfig = useAppConfigStore();
 const version = ref("");
 
 type ActiveView =
@@ -59,6 +63,8 @@ function openInbox(filterKey: string | null) {
 
 onMounted(async () => {
   workspaces.load();
+  await appConfig.load();
+  if (appConfig.warning) toast.error(appConfig.warning);
   if (await invoke<boolean>("updater_enabled")) {
     void updater.checkForUpdate({ silent: true });
   }

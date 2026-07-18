@@ -183,4 +183,59 @@ describe("agent terminals", () => {
       timeoutMsg: "expected the originally-focused (first) tab to be restored, not the last",
     });
   });
+
+  it("starts a terminal cleanly with a present, valid config.json (no error toast)", async () => {
+    // Config is read fresh from UAW_CONFIG_PATH on every spawn (agent_sessions.rs),
+    // so writing it right before "New terminal" is enough for THIS spawn to pick it up.
+    fs.writeFileSync(
+      process.env.UAW_CONFIG_PATH as string,
+      JSON.stringify({
+        terminal: { fontSize: 16 },
+        agents: { "claude-code": { args: ["--uaw-e2e"] } },
+      }),
+    );
+
+    await (await $("button*=Agents")).click();
+    // The previous test's workspace switch (away and back) clears this select via
+    // AgentsView's own workspace-change watcher. Re-selecting it via a native
+    // WebDriver click (selectByVisibleText) is set-then-immediately-reverted by a
+    // driver/webview timing quirk specific to this reselect-after-programmatic-reset
+    // case (confirmed: Vue's v-model briefly reflects the pick, then reverts to "",
+    // with no application watcher re-firing to explain it) — so set the value and
+    // dispatch its "change" directly in one atomic script, bypassing that path.
+    await browser.execute(() => {
+      const sel = document.querySelector<HTMLSelectElement>('[aria-label="Agent worktree"]');
+      const opt = Array.from(sel?.options ?? []).find((o) => o.text.trim() === "feat/agent");
+      if (sel && opt) {
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+    await browser.waitUntil(
+      async () => (await (await $("button*=New terminal")).getAttribute("disabled")) === null,
+      {
+        timeout: 10_000,
+        timeoutMsg: "expected the worktree selection to stick and enable New terminal",
+      },
+    );
+
+    await (await $("button*=New terminal")).click();
+
+    const term = await $('[data-testid="agent-terminal"]');
+    await term.waitForExist({ timeout: 10_000 });
+    await browser.waitUntil(async () => (await visibleTermText()).includes("AGENT-READY"), {
+      timeout: 15_000,
+      timeoutMsg: "expected the terminal to start cleanly with a present config.json",
+    });
+
+    // The fake agent echoes its argv; config.json's agents["claude-code"].args must
+    // have reached the spawned process.
+    await browser.waitUntil(async () => (await visibleTermText()).includes("--uaw-e2e"), {
+      timeout: 15_000,
+      timeoutMsg: "expected the configured agent arg to reach the spawned process",
+    });
+
+    // A schema-valid config.json must never surface a warning/error toast.
+    expect(await $('.re-toast[data-tone="danger"]').isExisting()).toBe(false);
+  });
 });
