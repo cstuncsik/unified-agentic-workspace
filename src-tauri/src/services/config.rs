@@ -14,6 +14,7 @@ use serde_json::Value;
 /// adapter injects the API key, so its program/args must never come from config.
 pub const PTY_AGENT_IDS: &[&str] = &["claude-code", "codex", "gemini"];
 pub const DEFAULT_FONT_SIZE: u16 = 13;
+const MAX_BYTES: u64 = 64 * 1024;
 
 #[derive(Debug, Clone, Default)]
 pub struct AgentConfig {
@@ -139,9 +140,75 @@ pub fn parse(contents: &str) -> (Config, Option<String>) {
     (cfg, None)
 }
 
+/// Read + parse the config at `path`. Impure (fs) but path-parameterized so it is
+/// testable with real tempfiles (no `AppHandle`). Fail-safe: absent → defaults,
+/// NO warning (first-run silence); symlink / non-regular / oversize / unreadable →
+/// defaults + a dataless warning; regular file → `parse`.
+pub fn read_config_at(path: &Path) -> (Config, Option<String>) {
+    let meta = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => return (Config::default(), None), // absent
+    };
+    if meta.file_type().is_symlink() || !meta.is_file() {
+        return (Config::default(), Some("config.json must be a regular file; using defaults.".to_string()));
+    }
+    if meta.len() > MAX_BYTES {
+        return (Config::default(), Some("config.json is too large; using defaults.".to_string()));
+    }
+    match std::fs::read_to_string(path) {
+        Ok(s) => parse(&s),
+        Err(_) => (Config::default(), Some("config.json is unreadable; using defaults.".to_string())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tmp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("uaw-cfg-{}-{name}", crate::util::new_id()))
+    }
+
+    #[test]
+    fn read_absent_file_defaults_no_warning() {
+        let (cfg, w) = read_config_at(&tmp_path("absent.json"));
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE);
+        assert!(w.is_none());
+    }
+
+    #[test]
+    fn read_valid_file_applies_and_no_warning() {
+        let p = tmp_path("valid.json");
+        std::fs::write(&p, r#"{"terminal":{"fontSize":20}}"#).unwrap();
+        let (cfg, w) = read_config_at(&p);
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(cfg.terminal.font_size, 20);
+        assert!(w.is_none());
+    }
+
+    #[test]
+    fn read_oversize_file_defaults_plus_warning() {
+        let p = tmp_path("big.json");
+        std::fs::write(&p, "x".repeat((MAX_BYTES + 1) as usize)).unwrap();
+        let (cfg, w) = read_config_at(&p);
+        let _ = std::fs::remove_file(&p);
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE);
+        assert!(w.unwrap().contains("too large"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn read_symlink_is_refused() {
+        let target = tmp_path("target.json");
+        std::fs::write(&target, r#"{"terminal":{"fontSize":20}}"#).unwrap();
+        let link = tmp_path("link.json");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        let (cfg, w) = read_config_at(&link);
+        let _ = std::fs::remove_file(&link);
+        let _ = std::fs::remove_file(&target);
+        assert_eq!(cfg.terminal.font_size, DEFAULT_FONT_SIZE); // NOT 20 — symlink refused
+        assert!(w.unwrap().contains("regular file"));
+    }
 
     #[test]
     fn pick_program_precedence() {
