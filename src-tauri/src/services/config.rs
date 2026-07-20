@@ -268,6 +268,58 @@ pub fn merge_edits(raw: &str, edits: &EditConfig) -> Result<String, String> {
     serde_json::to_string_pretty(&root).map_err(|_| "failed to serialize config".to_string())
 }
 
+/// Read the raw config for a save (guarded like `read_config_at`). Absent or
+/// blank/whitespace-only → `"{}"` (create-fresh). Symlink/non-regular/oversize → Err.
+pub fn read_config_raw(path: &Path) -> Result<String, String> {
+    let meta = match std::fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => return Ok("{}".to_string()),
+    };
+    if meta.file_type().is_symlink() || !meta.is_file() {
+        return Err("config.json must be a regular file.".to_string());
+    }
+    if meta.len() > MAX_BYTES {
+        return Err("config.json is too large.".to_string());
+    }
+    let s = std::fs::read_to_string(path).map_err(|_| "config.json is unreadable.".to_string())?;
+    Ok(if s.trim().is_empty() { "{}".to_string() } else { s })
+}
+
+/// Write `contents` to `path` atomically. Symlink-safe: a unique O_EXCL temp in
+/// the same dir + rename. Creates the parent dir. Removes the temp on any error.
+pub fn write_config_atomic(path: &Path, contents: &str) -> Result<(), String> {
+    use std::io::Write;
+    let parent = path.parent().ok_or_else(|| "invalid config path".to_string())?;
+    std::fs::create_dir_all(parent).map_err(|e| format!("failed to create config dir: {e}"))?;
+    let tmp = parent.join(format!("config.json.{}.tmp", crate::util::new_id()));
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)
+        .map_err(|e| format!("failed to create temp config: {e}"))?;
+    let res = f
+        .write_all(contents.as_bytes())
+        .and_then(|_| f.sync_all())
+        .map_err(|e| format!("failed to write config: {e}"))
+        .and_then(|_| {
+            std::fs::rename(&tmp, path).map_err(|e| format!("failed to replace config: {e}"))
+        });
+    if res.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    res
+}
+
+/// Full save at a path (path-parameterized → tempfile-testable, no AppHandle):
+/// guarded read → merge → atomic write → re-read the merged terminal config.
+pub fn save_at(path: &Path, edits: &EditConfig) -> Result<TerminalConfig, String> {
+    let raw = read_config_raw(path)?;
+    let merged = merge_edits(&raw, edits)?;
+    write_config_atomic(path, &merged)?;
+    let (cfg, _warning) = read_config_at(path);
+    Ok(cfg.terminal)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -504,5 +556,48 @@ mod tests {
             cfg.agents.get("codex").unwrap().args,
             vec!["--x".to_string(), "--y".to_string()],
         );
+    }
+
+    #[test]
+    fn save_at_writes_merged_and_preserves_theme_leaves_no_tmp() {
+        let p = tmp_path("save-ok.json");
+        std::fs::write(&p, r##"{"terminal":{"theme":{"background":"#abcdef"}}}"##).unwrap();
+        let tc = save_at(&p, &ed(18, &[("codex", Some("/c"), &["--a"])])).unwrap();
+        assert_eq!(tc.font_size, 18);
+        assert_eq!(tc.theme.get("background").unwrap(), "#abcdef");
+        let on_disk: Value = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+        assert_eq!(on_disk["terminal"]["theme"]["background"], "#abcdef");
+        assert_eq!(on_disk["agents"]["codex"]["bin"], "/c");
+        let leftovers: Vec<_> = std::fs::read_dir(p.parent().unwrap())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                let name = e.file_name();
+                let name = name.to_string_lossy();
+                name.starts_with("config.json.") && name.ends_with(".tmp")
+            })
+            .collect();
+        assert!(leftovers.is_empty());
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn save_at_invalid_raw_errors_and_leaves_file_byte_for_byte_unchanged() {
+        let p = tmp_path("save-invalid.json");
+        std::fs::write(&p, "{ this is not json").unwrap();
+        let before = std::fs::read(&p).unwrap();
+        let r = save_at(&p, &ed(20, &[("codex", Some("/c"), &[])]));
+        assert!(r.is_err());
+        assert_eq!(std::fs::read(&p).unwrap(), before);
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn save_at_absent_creates_fresh() {
+        let p = tmp_path("save-absent.json");
+        let tc = save_at(&p, &ed(16, &[])).unwrap();
+        assert_eq!(tc.font_size, 16);
+        assert!(p.exists());
+        let _ = std::fs::remove_file(&p);
     }
 }
