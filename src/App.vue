@@ -21,6 +21,7 @@ import AgentsView from "./components/AgentsView.vue";
 import BoardView from "./components/BoardView.vue";
 import ProvidersView from "./components/ProvidersView.vue";
 import ArtifactsView from "./components/ArtifactsView.vue";
+import SettingsView from "./components/SettingsView.vue";
 import ThemeToggle from "./components/ThemeToggle.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 import UpdateBanner from "./components/UpdateBanner.vue";
@@ -50,11 +51,12 @@ type ActiveView =
   | "reviews"
   | "board"
   | "agents"
-  | "providers";
+  | "providers"
+  | "settings";
 const activeView = ref<ActiveView>("inbox");
 
 // Placeholders for later milestones; kept visible so navigation stays product-shaped.
-const plannedSections = ["Skills", "Automations", "Settings"];
+const plannedSections = ["Skills", "Automations"];
 
 function openInbox(filterKey: string | null) {
   activeView.value = "inbox";
@@ -204,6 +206,16 @@ watch(
           </button>
 
           <button
+            class="re-button"
+            data-variant="ghost"
+            :aria-current="activeView === 'settings' ? 'page' : undefined"
+            type="button"
+            @click="activeView = 'settings'"
+          >
+            Settings
+          </button>
+
+          <button
             v-for="section in plannedSections"
             :key="section"
             class="re-button"
@@ -231,26 +243,29 @@ watch(
       </aside>
 
       <main class="main">
-        <p v-if="workspaces.loading" class="muted">Loading workspace…</p>
-        <p v-else-if="workspaces.error" class="error">{{ workspaces.error }}</p>
-        <template v-else-if="workspaces.current">
-          <header class="main__header">
-            <h1>{{ workspaces.current.name }}</h1>
-            <span class="badge">{{ workspaces.current.kind }}</span>
-          </header>
-          <SessionsView v-if="activeView === 'inbox'" />
-          <ProjectsView v-else-if="activeView === 'projects'" />
-          <ArtifactsView v-else-if="activeView === 'artifacts'" />
-          <SourcesView v-else-if="activeView === 'sources'" />
-          <CodingView v-else-if="activeView === 'coding'" />
-          <ReviewsView v-else-if="activeView === 'reviews'" />
-          <BoardView v-else-if="activeView === 'board'" />
-          <AgentsView v-else-if="activeView === 'agents'" />
-          <ProvidersView v-else-if="activeView === 'providers'" />
+        <SettingsView v-if="activeView === 'settings'" />
+        <template v-else>
+          <p v-if="workspaces.loading" class="muted">Loading workspace…</p>
+          <p v-else-if="workspaces.error" class="error">{{ workspaces.error }}</p>
+          <template v-else-if="workspaces.current">
+            <header class="main__header">
+              <h1>{{ workspaces.current.name }}</h1>
+              <span class="badge">{{ workspaces.current.kind }}</span>
+            </header>
+            <SessionsView v-if="activeView === 'inbox'" />
+            <ProjectsView v-else-if="activeView === 'projects'" />
+            <ArtifactsView v-else-if="activeView === 'artifacts'" />
+            <SourcesView v-else-if="activeView === 'sources'" />
+            <CodingView v-else-if="activeView === 'coding'" />
+            <ReviewsView v-else-if="activeView === 'reviews'" />
+            <BoardView v-else-if="activeView === 'board'" />
+            <AgentsView v-else-if="activeView === 'agents'" />
+            <ProvidersView v-else-if="activeView === 'providers'" />
+          </template>
+          <p v-else class="muted">No workspace selected.</p>
         </template>
-        <p v-else class="muted">No workspace selected.</p>
+        <ConfirmDialog />
       </main>
-      <ConfirmDialog />
     </div>
   </div>
 </template>
