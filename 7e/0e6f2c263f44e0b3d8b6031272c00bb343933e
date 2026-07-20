@@ -1,0 +1,19 @@
+docs/superpowers/specs/2026-07-19-agent-terminal-config-settings-design.md
+  s_b49f7388e23022::t_5e17569d9c2ed5 3,5,7-9,13-16,19-21,23,27-34,36,40-47,49-54,56-63,67-70,73-78,81-84,87-91,94-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "7e0e6f2c263f44e0b3d8b6031272c00bb343933e",
+  "prompts": {},
+  "sessions": {
+    "s_b49f7388e23022": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "22e8f3c1-2bc5-4123-8aef-b96a15d74c1d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Csaba Tuncsik <csaba.tuncsik@gmail.com>"
+    }
+  }
+}
