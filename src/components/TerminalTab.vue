@@ -104,7 +104,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="host" class="terminal" data-testid="agent-terminal"></div>
+  <div
+    ref="host"
+    class="terminal"
+    data-testid="agent-terminal"
+    :style="{ background: appConfig.terminal.theme.background }"
+  ></div>
 </template>
 
 <style scoped>
