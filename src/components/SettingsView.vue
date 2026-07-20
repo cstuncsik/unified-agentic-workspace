@@ -17,6 +17,7 @@ const bins = ref<Record<string, string>>({});
 const argsText = ref<Record<string, string>>({});
 const fontSize = ref(13);
 const submitting = ref(false);
+const loaded = ref(false);
 
 onMounted(async () => {
   const cfg = await appConfig.getForEdit();
@@ -26,6 +27,7 @@ onMounted(async () => {
   }
   fontSize.value = cfg.fontSize;
   if (cfg.warning) toast.error(cfg.warning);
+  loaded.value = true;
 });
 
 async function save() {
@@ -55,7 +57,8 @@ async function save() {
 <template>
   <section data-testid="settings-view">
     <h1 class="view-title">Settings</h1>
-    <form class="settings" @submit.prevent="save">
+    <p v-if="!loaded" class="muted">Loading settings…</p>
+    <form v-else class="settings" @submit.prevent="save">
       <fieldset v-for="agent in AGENTS" :key="agent.id" class="settings__agent">
         <legend>{{ agent.label }}</legend>
         <label class="settings__field">
@@ -109,6 +112,10 @@ async function save() {
 </template>
 
 <style scoped>
+.view-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.2rem;
+}
 .settings {
   display: flex;
   flex-direction: column;
