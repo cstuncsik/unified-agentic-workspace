@@ -264,8 +264,8 @@ watch(
           </template>
           <p v-else class="muted">No workspace selected.</p>
         </template>
-        <ConfirmDialog />
       </main>
+      <ConfirmDialog />
     </div>
   </div>
 </template>
