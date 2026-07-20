@@ -16,6 +16,11 @@ pub const PTY_AGENT_IDS: &[&str] = &["claude-code", "codex", "gemini"];
 pub const DEFAULT_FONT_SIZE: u16 = 13;
 const MAX_BYTES: u64 = 64 * 1024;
 
+pub const FONT_SIZE_RANGE: std::ops::RangeInclusive<u64> = 6..=72;
+pub fn valid_font_size(n: u64) -> bool {
+    FONT_SIZE_RANGE.contains(&n)
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct AgentConfig {
     pub bin: Option<String>,
@@ -124,7 +129,7 @@ pub fn parse(contents: &str) -> (Config, Option<String>) {
 
     if let Some(term) = obj.get("terminal").and_then(Value::as_object) {
         if let Some(fs) = term.get("fontSize").and_then(Value::as_u64) {
-            if (6..=72).contains(&fs) {
+            if valid_font_size(fs) {
                 cfg.terminal.font_size = fs as u16;
             }
         }
@@ -161,12 +166,200 @@ pub fn read_config_at(path: &Path) -> (Config, Option<String>) {
     }
 }
 
+/// One agent's editable fields — Serialize (form load) + Deserialize (save).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AgentEdit {
+    #[serde(default)]
+    pub bin: Option<String>,
+    #[serde(default)]
+    pub args: Vec<String>,
+}
+
+/// The Settings save payload. `agents` is a MAP keyed by PTY adapter id (kebab —
+/// a fixed struct + rename_all can't represent "claude-code").
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditConfig {
+    #[serde(default)]
+    pub agents: BTreeMap<String, AgentEdit>,
+    pub font_size: u16,
+}
+
+/// Project the parsed config into the form's editable shape: all 3 PTY ids
+/// (present → file values, absent → empty) + the effective font size.
+pub fn edit_view(cfg: &Config) -> (BTreeMap<String, AgentEdit>, u16) {
+    let agents = PTY_AGENT_IDS
+        .iter()
+        .map(|id| {
+            let a = cfg.agents.get(*id);
+            (
+                (*id).to_string(),
+                AgentEdit {
+                    bin: a.and_then(|a| a.bin.clone()),
+                    args: a.map(|a| a.args.clone()).unwrap_or_default(),
+                },
+            )
+        })
+        .collect();
+    (agents, cfg.terminal.font_size)
+}
+
+/// Merge the edited fields into the RAW config JSON, preserving `theme` + every
+/// unknown key. Pure. Errors (never writes) on a non-object file or bad fontSize.
+pub fn merge_edits(raw: &str, edits: &EditConfig) -> Result<String, String> {
+    const INVALID: &str =
+        "config.json isn't valid JSON — fix it by hand before saving from Settings.";
+    let mut root: Value = serde_json::from_str(raw).map_err(|_| INVALID.to_string())?;
+    if !root.is_object() {
+        return Err(INVALID.to_string());
+    }
+    if !valid_font_size(edits.font_size as u64) {
+        return Err("Font size must be 6–72.".to_string());
+    }
+    let obj = root.as_object_mut().unwrap();
+
+    let terminal = obj
+        .entry("terminal")
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !terminal.is_object() {
+        *terminal = Value::Object(serde_json::Map::new());
+    }
+    terminal
+        .as_object_mut()
+        .unwrap()
+        .insert("fontSize".to_string(), Value::from(edits.font_size));
+
+    let agents = obj
+        .entry("agents")
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !agents.is_object() {
+        *agents = Value::Object(serde_json::Map::new());
+    }
+    let agents_obj = agents.as_object_mut().unwrap();
+    for (id, edit) in &edits.agents {
+        if !PTY_AGENT_IDS.contains(&id.as_str()) {
+            continue;
+        }
+        let entry = agents_obj
+            .entry(id.clone())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if !entry.is_object() {
+            *entry = Value::Object(serde_json::Map::new());
+        }
+        let a = entry.as_object_mut().unwrap();
+        match edit.bin.as_deref().map(str::trim) {
+            Some(b) if !b.is_empty() => {
+                a.insert("bin".to_string(), Value::from(b));
+            }
+            _ => {
+                a.remove("bin");
+            }
+        }
+        let args: Vec<Value> = edit
+            .args
+            .iter()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(Value::from)
+            .collect();
+        a.insert("args".to_string(), Value::Array(args));
+    }
+
+    serde_json::to_string_pretty(&root).map_err(|_| "failed to serialize config".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn tmp_path(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!("uaw-cfg-{}-{name}", crate::util::new_id()))
+    }
+
+    fn ed(font_size: u16, agents: &[(&str, Option<&str>, &[&str])]) -> EditConfig {
+        EditConfig {
+            font_size,
+            agents: agents
+                .iter()
+                .map(|(id, bin, args)| {
+                    (
+                        id.to_string(),
+                        AgentEdit {
+                            bin: bin.map(str::to_string),
+                            args: args.iter().map(|s| s.to_string()).collect(),
+                        },
+                    )
+                })
+                .collect(),
+        }
+    }
+    fn merged(raw: &str, edits: &EditConfig) -> Value {
+        serde_json::from_str(&merge_edits(raw, edits).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn merge_preserves_theme_unknown_and_non_pty_and_sets_edits() {
+        let raw = r##"{
+          "theme_note":"keep me",
+          "agents":{"codex":{"bin":"/old","extra":"keepInAgent"},"claude-agent-sdk":{"bin":"/sdk"}},
+          "terminal":{"theme":{"background":"#123456"},"note":"keepInTerminal"}
+        }"##;
+        let v = merged(raw, &ed(20, &[("codex", Some("/new"), &["--x"])]));
+        assert_eq!(v["terminal"]["fontSize"], 20);
+        assert_eq!(v["terminal"]["theme"]["background"], "#123456");
+        assert_eq!(v["terminal"]["note"], "keepInTerminal");
+        assert_eq!(v["theme_note"], "keep me");
+        assert_eq!(v["agents"]["codex"]["bin"], "/new");
+        assert_eq!(v["agents"]["codex"]["args"][0], "--x");
+        assert_eq!(v["agents"]["codex"]["extra"], "keepInAgent");
+        assert_eq!(v["agents"]["claude-agent-sdk"]["bin"], "/sdk");
+    }
+
+    #[test]
+    fn merge_whitelist_ignores_sdk_id_in_payload() {
+        let v = merged("{}", &ed(13, &[("claude-agent-sdk", Some("/evil"), &[])]));
+        assert!(v.get("agents").is_none() || v["agents"].get("claude-agent-sdk").is_none());
+    }
+
+    #[test]
+    fn merge_guards_nested_non_objects_without_panic() {
+        for raw in [r#"{"terminal":5}"#, r#"{"agents":[]}"#, r#"{"agents":{"codex":5}}"#] {
+            let v = merged(raw, &ed(14, &[("codex", Some("/c"), &["--a"])]));
+            assert_eq!(v["terminal"]["fontSize"], 14);
+            assert_eq!(v["agents"]["codex"]["bin"], "/c");
+        }
+    }
+
+    #[test]
+    fn merge_bin_empty_removes_key_args_trim_drop() {
+        let v = merged(
+            r#"{"agents":{"codex":{"bin":"/old"}}}"#,
+            &ed(13, &[("codex", Some("   "), &["--a", "  ", " b c "])]),
+        );
+        assert!(v["agents"]["codex"].get("bin").is_none());
+        assert_eq!(v["agents"]["codex"]["args"], serde_json::json!(["--a", "b c"]));
+    }
+
+    #[test]
+    fn merge_rejects_bad_fontsize_and_non_object() {
+        assert!(merge_edits("{}", &ed(5, &[])).is_err());
+        assert!(merge_edits("{}", &ed(73, &[])).is_err());
+        assert!(merge_edits("6", &ed(6, &[])).is_err());
+        assert!(merge_edits("[1,2]", &ed(6, &[])).is_err());
+        assert!(merge_edits("{ not json", &ed(6, &[])).is_err());
+        assert!(merge_edits("{}", &ed(6, &[])).is_ok());
+        assert!(merge_edits("{}", &ed(72, &[])).is_ok());
+    }
+
+    #[test]
+    fn edit_view_projects_all_three_ids() {
+        let (cfg, _) = parse(r#"{"agents":{"codex":{"bin":"/c","args":["-x"]}}}"#);
+        let (agents, fs) = edit_view(&cfg);
+        assert_eq!(fs, DEFAULT_FONT_SIZE);
+        assert_eq!(agents["codex"].bin.as_deref(), Some("/c"));
+        assert_eq!(agents["claude-code"].bin, None);
+        assert!(agents["gemini"].args.is_empty());
+        assert_eq!(agents.len(), 3);
     }
 
     #[test]
