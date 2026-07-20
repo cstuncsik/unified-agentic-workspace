@@ -2,6 +2,7 @@ import { ref } from "vue";
 import { defineStore } from "pinia";
 import type { ITheme } from "@xterm/xterm";
 import * as api from "../api/appConfig";
+import type { EditConfig } from "../types/appConfig";
 
 // Kept in sync with `services/config.rs::default_theme()`. Duplicated JS-side so
 // the pre-load terminal is correct without gating mount on the async load.
@@ -51,5 +52,18 @@ export const useAppConfigStore = defineStore("appConfig", () => {
     return inflight;
   }
 
-  return { terminal, warning, load };
+  function getForEdit() {
+    return api.getConfigForEdit();
+  }
+
+  async function save(edits: EditConfig): Promise<{ ok: boolean; error?: string }> {
+    try {
+      terminal.value = await api.saveConfig(edits);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  }
+
+  return { terminal, warning, load, getForEdit, save };
 });
